@@ -1,0 +1,13 @@
+package silt.samples
+package actor
+package getstarted
+
+object Server {
+
+  def main(args: Array[String]): Unit = {
+
+  }
+
+}
+
+// vim: set tw=80 ft=scala:

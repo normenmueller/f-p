@@ -1,77 +1,43 @@
 package silt
 
-import scala.spores.{Spore, Spore2}
-import scala.pickling.{Pickler, Unpickler}
-
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.spores.Spore
+import scala.pickling.{ Pickler, Unpickler }
 
-import scala.collection.Traversable
-
-/** A program operating on data stored in a silo can only do so using a
- *  reference to the silo, a so-called `SiloRef`.
- *  
- *  Similar to a proxy object, a `SiloRef` represents, and allows interacting
- *  with, a silo possibly located on a remote node. For the component acquiring
- *  a `SiloRef`, the location of the silo – local or remote – is completely
- *  transparent. We call this property *location transparency*.
- *
- *  @tparam W
- *  @tparam T the type corresponding to the referenced silo's data
- */
-trait SiloRef[W, T <: Traversable[W]] {
-
-  /** Takes a spore that is to be applied to the data in the referenced silo.
-   *
-   *  Rather than immediately sending the spore across the network, and waiting
-   *  for the operation to finish, the apply method is lazy: it immediately
-   *  returns a SiloRef that refers to the result silo.
-   *  
-   *  @param fun the spore to be applied on the data pointed to by this `SiloRef`
-   */ 
-  def apply[V, S <: Traversable[V]](fun: Spore[T, S])
-                                   (implicit pickler: Pickler[Spore[T, S]], unpickler: Unpickler[Spore[T, S]]): SiloRef[V, S]
-
-  def send(): Future[T]
-
-  def pumpTo[V, R <: Traversable[V], P <: Spore2[W, Emitter[V], Unit]](destSilo: SiloRef[V, R])(fun: P)
-                                    (implicit bf: BuilderFactory[V, R], pickler: Pickler[P], unpickler: Unpickler[P]): Unit = ???
-
-  def flatMap[V, S <: Traversable[V]](fun: Spore[T, SiloRef[V, S]])
-                                     (implicit pickler: Pickler[Spore[T, SiloRef[V, S]]], unpickler: Unpickler[Spore[T, SiloRef[V, S]]]): SiloRef[V, S] = ???
+/** Immutable and serializable handle to a silo, which may or may not reside on
+  * the local host or inside the same silo system. A `SiloRef` can be obtained
+  * from [[SiloRefFactory]], an interface which is implemented by [[SiloSystem]].
+  *
+  * @tparam T element type of the referenced silo
+  */
+trait SiloRef[T] {
 
   def id: SiloRefId
 
-  def host: Host
+  @deprecated("use `id.at` instead", "")
+  def host: Host =
+    id.at
+
+  def apply[S](fun: Spore[T, S])(implicit pickler: Pickler[Spore[T, S]], unpickler: Unpickler[Spore[T, S]]): SiloRef[S]
+
+  def flatMap[S](fun: Spore[T, SiloRef[S]])(implicit pickler: Pickler[Spore[T, SiloRef[S]]], unpickler: Unpickler[Spore[T, SiloRef[S]]]): SiloRef[S]
+
+  def send(): Future[T]
+
 }
 
-final case class Host(address: String, port: Int)
+/** A JVM-wide, unique identifier of a silo.
+  *
+  * Note, the context of a host is necessary to unambiguously identify silos
+  * without the requirement to request consensus in a silo landscape spread over
+  * various nodes which, for sure, would negatively affect performance.
+  *
+  * XXX SiloRefId uniqueness Make a SiloRefId JVM-wide unique
+  */
+final case class SiloRefId(at: Host, value: Int) {
 
-final case class SiloRefId(value: Int)
+  override def toString = s"$at:$value"
 
-// this does not extend SiloRef. Silos and SiloRefs are kept separate.
-class LocalSilo[U, T <: Traversable[U]](private[silt] val value: T) {
-
-  def internalApply[A, V, B <: Traversable[V]](fun: A => B): LocalSilo[V, B] = {
-    val typedFun = fun.asInstanceOf[T => B]
-    println(s"LocalSilo: value = $value")
-    val res = typedFun(value)
-    println(s"LocalSilo: result of applying function: $res")
-    new LocalSilo[V, B](res)
-  }
-
-  def send(): Future[T] = {
-    Future.successful(value)
-  }
-
-  def doPumpTo[A, B](existFun: Function2[A, Emitter[B], Unit], emitter: Emitter[B]): Unit = {
-    val fun = existFun.asInstanceOf[Function2[U, Emitter[B], Unit]]
-    Future {
-      value.foreach { elem =>
-        // println(s"visiting element $elem")
-        fun(elem, emitter)
-      }
-      emitter.done()
-    }
-  }
 }
+
+// vim: set tw=80 ft=scala:

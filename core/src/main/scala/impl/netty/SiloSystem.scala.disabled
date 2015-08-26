@@ -1,0 +1,144 @@
+package silt
+package impl
+package netty
+
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.locks.ReentrantLock
+import java.util.concurrent.{ BlockingQueue, CountDownLatch, LinkedBlockingQueue }
+
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.{ Await, Future, Promise }
+import scala.util.{ Try }
+
+import io.netty.channel.{ EventLoopGroup, Channel, ChannelFuture, ChannelHandlerContext, ChannelInboundHandlerAdapter, ChannelInitializer, ChannelOption }
+
+import com.typesafe.scalalogging.{ StrictLogging => Logging }
+
+/** A Netty-based implementation of a silo system. */
+class SiloSystem extends AnyRef with impl.SiloSystem with Logging {
+  logger.debug("Netty-based silo system initializing...")
+
+  private var srv: Server = _
+
+  ///** Acquire lock on ??? on a per-thread rather than per-invocation basis. */
+  //val lock = new ReentrantLock
+
+  /** Synchronizer for this silo system.
+    *
+    * The silo system, including a conceivably underlying server, keeps on
+    * running until the latch reaches the terminal state. That is, the gate is
+    * closed and no thread can pass. In the terminal state the gate opens,
+    * allowing all threads to pass, say, to shutdown the silo system and the
+    * server, respectively.
+    */
+  private val latch = new CountDownLatch(1)
+
+  val statusOf = new TrieMap[Host, ConnectionStatus]
+
+  private val queue: BlockingQueue[Incoming] = new LinkedBlockingQueue[Incoming]()
+
+  /** Server-side channel inbound handler */
+  class ServerInboundHandler(queue: BlockingQueue[Incoming]) extends ChannelInboundHandlerAdapter with Logging {
+
+    override def channelActive(ctx: ChannelHandlerContext): Unit = {
+      logger.debug("SERVER: entered status `channelActive`.")
+      logger.trace(s"SERVER: context is `${ctx}`.")
+      //sendToChannel(ctx.channel, s"Time: something")
+    }
+
+    /* Forward incoming messages to internal [[queue]].
+     *
+     * Be aware that messages are not released after the
+     * `channelRead(ChannelHandlerContext, Object)` method returns
+     * automatically.
+     *
+     * In case of a default, Netty-based, server mode silo system realization,
+     * the [[Receptor]] will release the message.
+     *
+     * In case of a default, Netty-based, client mode silo system realization,
+     * XXX will release the message.
+     */
+    override def channelRead(ctx: ChannelHandlerContext, msg: Object): Unit = {
+      logger.debug("SERVER: entered status `channelRead`.")
+      logger.trace(s"SERVER: context is `${ctx}` with message `${msg}`.")
+      queue.add(Incoming(ctx, msg))
+    }
+
+    // XXX Don't just close the connection when an exception is raised.
+    override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
+      cause.printStackTrace()
+      ctx.close()
+    }
+
+  }
+
+  override def withServer(at: Option[Host]): Try[this.type] = Try {
+    at match {
+      case None => 
+        // XXX run in client mode
+        this
+      case Some(host) =>
+        //val receptorRunnable = new Receptor(this, host, queue)
+        //val receptorThread = new Thread(receptorRunnable)
+        //receptorThread.start()
+        srv = new Server(host, new ServerInboundHandler(queue))
+
+        println("new Thread")
+        (new Thread {
+          override def run(): Unit = {
+            try {
+              srv.init()
+              srv.start()
+              println("tttt")
+            } catch {
+              case e: Throwable =>
+                e.printStackTrace()
+            }
+          }
+        }).start()
+
+        //latch.await()
+        //logger.info(s"SERVER: shutting down...")
+
+        //receptorRunnable.shouldTerminate = true
+        //receptorThread.interrupt()
+        //receptorThread.join()
+
+        //logger.info(s"SERVER: shutdown done.")
+
+        this
+    }
+  }
+
+  override def terminate(): Unit = {
+    //statusOf map {
+    //  case (_, Connected(ch, workerGroup)) =>
+    //    logger.debug(s"Client sends 'Terminate' to channel `$ch`.")
+    //    /* XXX Terminate Netty Channel
+    //     *     sendToChannel(ch, Terminate())
+    //     */
+
+    //    logger.trace(s"Client is waiting for channel `$ch` to be closed.")
+    //    /* XXX sync vs. await
+    //     *     Why do we require to rethrow the error?
+    //     *     Cf. http://netty.io/4.1/api/io/netty/channel/ChannelFuture.html#sync()
+    //     */
+    //    ch.closeFuture().sync()
+
+    //    logger.trace(s"DONE. Channel `$ch` has been closed.")
+    //    logger.trace("Shutting down event loop group.")
+
+    //    workerGroup.shutdownGracefully()
+
+    //    logger.debug("DONE. Silo system has been shut down.")
+
+    //  case _ =>
+    //    /* do nothing */
+    //}
+    srv.stop()
+  }
+
+}
+
+// vim: set tw=80 ft=scala:

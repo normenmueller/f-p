@@ -1,65 +1,96 @@
 package silt
 
-import scala.pickling._
-import Defaults._
-
 import scala.concurrent.Future
-import scala.collection.mutable
-import scala.collection.concurrent.TrieMap
+import scala.util.{ Try, Success, Failure }
 
-import java.util.concurrent.atomic.AtomicInteger
+import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
+/** This object provides a set of operations needed to create [[SiloSystem]]
+  * values.
+  */
+object SiloSystem extends AnyRef with Logging {
 
-object SiloSystem {
-  def apply(): SiloSystem =
-    new silt.netty.SystemImpl
+  /** Instantiate a silo system.
+    *
+    * In case of some port is given, the silo system runs in server mode.
+    * That is, the silo system is extended by an underlying server
+    * located at `localhost` listening at port `port`. The underlying server is
+    * required to host silos and make those available to other silo systems.
+    *
+    * In case of none port is given, the silo system runs in client mode.
+    *
+    * The actual silo system implementation must be a subclass of
+    * [[silt.impl.SiloSystem]]. The concrete realization is specified by the
+    * system property `-Dsilt.system.impl=<class>`. If no system property is
+    * given, the realization defaults to [[silt.impl.netty.SiloSystem]].
+    *
+    * As default, in both cases, server as well as client mode, Netty is used to
+    * realize the network layer.
+    *
+    * @param port network port
+    */
+  def apply(port: Option[Int] = None): Try[SiloSystem] = Try {
+    val clazz = sys.props.getOrElse("silo.system.impl", "silt.impl.netty.SiloSystem")
+    logger.info(s"Initializing silo system with `$clazz`")
+    Class.forName(clazz).newInstance().asInstanceOf[impl.SiloSystem]
+  } flatMap (_ withServer (port map (Host("127.0.0.1", _))))
+
 }
 
+/** A silo system.
+  *
+  * On the logical level, a silo system can be understood as the entry point to
+  * a collection of silos. On the technical level, it constitutes the interface
+  * to the F-P runtime.
+  */
 trait SiloSystem {
   self: SiloSystemInternal =>
 
-  def fromClass[U, T <: Traversable[U]](clazz: Class[_], host: Host): Future[SiloRef[U, T]] =
-    initRequest[U, T, InitSilo](host, { (refId: Int) =>
-      println(s"fromClass: register location of $refId")
-      InitSilo(clazz.getName(), refId)
-    })
+  /* XXX Multi-silo systems 
+   *
+   * If we enable multi-silo systems within one JVM we
+   * should give them a name in order to distinguish
+   */
+  //def name: String
 
-  def fromFun[U, T <: Traversable[U]](host: Host)(fun: () => LocalSilo[U, T])(implicit p: Pickler[InitSiloFun[U, T]]): Future[SiloRef[U, T]] =
-    initRequest[U, T, InitSiloFun[U, T]](host, { (refId: Int) =>
-      println(s"fromFun: register location of $refId")
-      InitSiloFun(fun, refId)
-    })
+  /** Terminates the silo system. */
+  /* XXX Terminate silo system 
+   * - Wait until all connections to/ from this silo system are closed
+   * - Timeout
+   * - Return type Future[Status]
+   */
+  def terminate(): Unit
 
-  // the idea is that empty silos can only be filled using pumpTos.
-  // we'll detect issues like trying to fill a silo that's been constructed
-  // *not* using pumpTo at runtime (before running the topology, though!)
-  //
-  // to push checking further to compile time, could think of
-  // using phantom types to detect whether a ref has been target of non-pumpTo!
-  def emptySilo[U, T <: Traversable[U]](host: Host): SiloRef[U, T] = {
-    val refId = refIds.incrementAndGet()
-    location += (refId -> host)
-    new graph.EmptySiloRef[U, T](refId, host)(this)
-  }
+  /** Uploads a silo to `host` with the initialization process of `clazz`.
+    *
+    * Note: `clazz` must provide methods for the silo initialization process.
+    * This constrain is not yet specified on the type level.
+    *
+    * @param clazz logic to initialize the to be created silo
+    * @param host location of the to be created silo
+    */
+  //def fromClass[U, T <: Traversable[U]](clazz: Class[_], host: Host): Future[SiloRef[U, T]] =
+  //  initRequest[U, T, InitSilo](host, {
+  //    //println(s"fromClass: register location of $refId")
+  //    InitSilo(clazz.getName())
+  //  })
 
-  def waitUntilAllClosed(): Unit
 }
 
-// abstracts from different network layer backends
+/* Internal requirements of a silo system
+ *
+ * Those internal requirements are basically implementation details to be hidden
+ * from the public API. For example, those internals abstract from different
+ * network layer back-ends
+ */
 private[silt] trait SiloSystemInternal {
 
-  // map ref ids to host locations
-  val location: mutable.Map[Int, Host] = new TrieMap[Int, Host]
+  import scala.collection.mutable
+  import scala.collection.concurrent.TrieMap
 
-  val seqNum = new AtomicInteger(10)
-
-  val refIds = new AtomicInteger(0)
-
-  val emitterIds = new AtomicInteger(0)
-
-  // idea: return Future[SelfDescribing]
-  def send[T <: ReplyMessage : Pickler](host: Host, msg: T): Future[Any]
-
-  def initRequest[U, T <: Traversable[U], V <: ReplyMessage : Pickler](host: Host, mkMsg: Int => V): Future[SiloRef[U, T]]
+  /* Silo locations identified via respective SiloRef */
+  val location: mutable.Map[SiloRefId, Host] = new TrieMap[SiloRefId, Host]
 
 }
+
+// vim: set tw=80 ft=scala:

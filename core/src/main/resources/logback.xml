@@ -1,12 +1,17 @@
 <configuration>
+
+  <conversionRule conversionWord="coloredLevel" converterClass="silt.util.ColoredLoggerLevel" />
     
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%level %-5logger{5} - %message%n%xException{5}</pattern>
+      <pattern>%coloredLevel %-25logger{25} - %message%n%xException{5}</pattern>
     </encoder>
   </appender>
   
-  <root level="INFO">
+  <logger name="io.netty" level="ERROR" />
+  <logger name="silt"     level="TRACE" />
+  
+  <root level="DEBUG">
     <appender-ref ref="STDOUT" />
   </root>
   
