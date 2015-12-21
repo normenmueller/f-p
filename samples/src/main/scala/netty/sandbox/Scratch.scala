@@ -2,6 +2,9 @@ package silt.samples
 package netty
 package sandbox
 
+import scala.concurrent.{ Await, Future }
+import scala.concurrent.duration.Duration
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{ Success, Failure }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
@@ -10,38 +13,55 @@ import silt.SiloSystem
 
 object Scratch extends AnyRef with App with Logging {
 
-  /* Silo system in server-mode */
+
+  /* Run silo system in dual mode.
+   *
+   * In order to shutdown a silo system running in server mode, clients may send
+   * the string "shutdown", or the silo system must [[terminate
+   * SiloSystem#termiante]] itself.
+   */
   SiloSystem(port = Some(8091)) match {
-    case Success(system) =>
-      // XXX At this point in time the silo sytem incl. the underlying server
-      // must be up and running
-      //
-      // XXX Silo system info (e.g. via `system.info`)?
-      logger.info("Silo system in server-mode up and running at `???`.")
 
-      // do something
-      logger.debug(">>> workflow definition")
-      for (i <- 1 to 10) {
-        logger.debug(f"... working ... ($i%04d)")
-        Thread.sleep(100)
+    /* At this level correctness of a silo system realization is verified. That
+     * is, subtyping correctness re [[impl.SiloSystem]].
+     */
+    case Success(system) => 
+      system onComplete {
+
+        case Success(system) => 
+          logger.info(s"Silo system in server mode up and running at `${system.name}`.")
+
+          /* XXX Actually, silo system is running in dual mode. Cf. question re
+           * "Does it make sense to have a silo system running in dual mode?" at
+           * [[https://github.com/normenmueller/f-p/wiki/Understanding-silo-systems]]
+           */
+          logger.debug(">>> workflow definition and execution")
+          for (i <- 1 to 100) {
+            logger.debug(f"... working ... ($i%04d)")
+            Thread.sleep(100)
+
+            /* XXX What if a client, during this workflow execution, sends a
+             * "shutdown" to the underlying server of this silo system running
+             * in dual mode?
+             */
+          }
+
+          logger.info("Silo system running in server-mode terminating itself...")
+          system.terminate()
+          logger.info("Silo system running in server-mode terminating itslef done.")
+
+        case Failure(error) =>
+          logger.error(s"Could not start silo system in server mode:\n ${error.getMessage}")
       }
+      Thread.sleep(5000)
 
-      // XXX Make it configurable to let system run forever, till shutdown via a
-      // dedicated message to the underlying server or the JVM exits? That is,
-      // run the entire silo system as a daemon. Such a silo system would not
-      // allow any further interaction, though, but via the underlying server.
-      // shutdown system
+    case Failure(error) => logger.error(s"Could not instantiate silo system:\n ${error.getMessage}")
 
-
-      // XXX What if termination call is left out? At least within Sbt, the
-      // underlying server keeps on running.
-      logger.info("Silo system in server-mode is shutting down...")
-      system.terminate()
-    case Failure(err) =>
-      logger.error(s"Could not instantiate silo system at `localhost`:\n ${err.getMessage}")
   }
 
-  /* Silo system in client-mode */
+  /* Run silo system in client-mode
+   *
+   */
   //SiloSystem() match {
   // case Success(system) =>
   //   // create initial silo, i.e., upload initial data

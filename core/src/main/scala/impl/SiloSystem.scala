@@ -1,11 +1,11 @@
 package silt
 package impl
 
-import scala.util.Try
+import scala.concurrent.Future
 
 trait SiloSystem extends silt.SiloSystem with SiloSystemInternal {
 
-  def withServer(at: Option[Host]): Try[SiloSystem]
+  def withServer(at: Option[Host]): Future[SiloSystem]
 
 }
 

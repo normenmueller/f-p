@@ -4,9 +4,11 @@ import scala.concurrent.Future
 import scala.spores.Spore
 import scala.pickling.{ Pickler, Unpickler }
 
-/** Immutable and serializable handle to a silo, which may or may not reside on
-  * the local host or inside the same silo system. A `SiloRef` can be obtained
-  * from [[SiloRefFactory]], an interface which is implemented by [[SiloSystem]].
+/** Immutable and serializable handle to a silo. 
+ *
+ *  The referenced silo may or may not reside on the local host or inside the
+ *  same silo system. A [[SiloRef]] can be obtained from [[SiloRefFactory]], an
+ *  interface which is implemented by [[SiloSystem]].
   *
   * @tparam T element type of the referenced silo
   */
@@ -32,7 +34,7 @@ trait SiloRef[T] {
   * without the requirement to request consensus in a silo landscape spread over
   * various nodes which, for sure, would negatively affect performance.
   *
-  * XXX SiloRefId uniqueness Make a SiloRefId JVM-wide unique
+  * XXX SiloRefId uniqueness: Make a SiloRefId JVM-wide unique (cf. java.rmi.dgc.VMID)
   */
 final case class SiloRefId(at: Host, value: Int) {
 

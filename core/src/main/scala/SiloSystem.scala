@@ -20,20 +20,21 @@ object SiloSystem extends AnyRef with Logging {
     * In case of none port is given, the silo system runs in client mode.
     *
     * The actual silo system implementation must be a subclass of
-    * [[silt.impl.SiloSystem]]. The concrete realization is specified by the
-    * system property `-Dsilt.system.impl=<class>`. If no system property is
-    * given, the realization defaults to [[silt.impl.netty.SiloSystem]].
+    * [[silt.impl.SiloSystem]] with a default, empty constructor. The concrete
+    * realization is specified by the system property
+    * `-Dsilt.system.impl=<class>`. If no system property is given, the
+    * realization defaults to [[silt.impl.netty.SiloSystem]].
     *
     * As default, in both cases, server as well as client mode, Netty is used to
     * realize the network layer.
     *
     * @param port network port
     */
-  def apply(port: Option[Int] = None): Try[SiloSystem] = Try {
+  def apply(port: Option[Int] = None): Try[Future[SiloSystem]] = Try { 
     val clazz = sys.props.getOrElse("silo.system.impl", "silt.impl.netty.SiloSystem")
     logger.info(s"Initializing silo system with `$clazz`")
     Class.forName(clazz).newInstance().asInstanceOf[impl.SiloSystem]
-  } flatMap (_ withServer (port map (Host("127.0.0.1", _))))
+  } map (_ withServer (port map (Host("127.0.0.1", _))))
 
 }
 
@@ -44,14 +45,18 @@ object SiloSystem extends AnyRef with Logging {
   * to the F-P runtime.
   */
 trait SiloSystem {
+
   self: SiloSystemInternal =>
 
-  /* XXX Multi-silo systems 
-   *
-   * If we enable multi-silo systems within one JVM we
-   * should give them a name in order to distinguish
-   */
-  //def name: String
+  /** Returns the name of the silo system.
+    *
+    * If the silo system is running in server mode, [[name]] defaults to `Host @
+    * Port`.
+    *
+    * If the silo system is running is client mode, [[name]] defaults to the
+    * respective [[java.rmi.dgc.VMID VMID]]. 
+    */
+  def name: String
 
   /** Terminates the silo system. */
   /* XXX Terminate silo system 
@@ -61,14 +66,14 @@ trait SiloSystem {
    */
   def terminate(): Unit
 
-  /** Uploads a silo to `host` with the initialization process of `clazz`.
-    *
-    * Note: `clazz` must provide methods for the silo initialization process.
-    * This constrain is not yet specified on the type level.
-    *
-    * @param clazz logic to initialize the to be created silo
-    * @param host location of the to be created silo
-    */
+  ///** Uploads a silo to `host` with the initialization process of `clazz`.
+  //  *
+  //  * Note: `clazz` must provide methods for the silo initialization process.
+  //  * This constrain is not yet specified on the type level.
+  //  *
+  //  * @param clazz logic to initialize the to be created silo
+  //  * @param host location of the to be created silo
+  //  */
   //def fromClass[U, T <: Traversable[U]](clazz: Class[_], host: Host): Future[SiloRef[U, T]] =
   //  initRequest[U, T, InitSilo](host, {
   //    //println(s"fromClass: register location of $refId")
@@ -77,7 +82,7 @@ trait SiloSystem {
 
 }
 
-/* Internal requirements of a silo system
+/* Internal requirements of a silo system.
  *
  * Those internal requirements are basically implementation details to be hidden
  * from the public API. For example, those internals abstract from different

@@ -8,8 +8,8 @@
     </encoder>
   </appender>
   
-  <logger name="io.netty" level="ERROR" />
-  <logger name="silt"     level="TRACE" />
+  <logger name="io.netty"         level="ERROR" />
+  <logger name="silt.impl.netty"  level="DEBUG" />
   
   <root level="DEBUG">
     <appender-ref ref="STDOUT" />

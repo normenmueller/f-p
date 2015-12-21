@@ -4,8 +4,10 @@ package netty
 
 import java.util.concurrent.BlockingQueue
 
+import scala.concurrent.Promise
+
 import io.netty.bootstrap.ServerBootstrap
-import io.netty.channel.{ ChannelFuture, ChannelHandler, ChannelHandlerContext, ChannelInboundHandlerAdapter, ChannelInitializer, EventLoopGroup }
+import io.netty.channel.ChannelInitializer
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
@@ -13,14 +15,25 @@ import io.netty.handler.logging.{ LogLevel, LoggingHandler }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
-private[netty] class Server(val at: Host, queue: BlockingQueue[Incoming]) extends AnyRef with Runnable with Logging {
+private[netty] trait Server extends AnyRef with Runnable with Logging {
 
-  private val srvr: ServerBootstrap = new ServerBootstrap
-  private val boss: EventLoopGroup = new NioEventLoopGroup
-  private val wrkr: EventLoopGroup = new NioEventLoopGroup
+  self: SiloSystem =>
 
-  /* Initialize a Netty-based server as described at
-   * [[http://netty.io/wiki/user-guide-for-4.x.html]]
+  // Location where server is bound and started.
+  def at: Host
+
+  // Message queue incomming messages are forwared to.
+  def mq: BlockingQueue[Incoming]
+
+  // Promise the server is up and running.
+  def up: Promise[SiloSystem]
+
+  val srvr = new ServerBootstrap
+  val boss = new NioEventLoopGroup
+  val wrkr = new NioEventLoopGroup
+
+  /* Initialize a [[Netty-based http://netty.io/wiki/user-guide-for-4.x.html]]
+   * server.
    */
   logger.info("Server initializing...")
   srvr.group(boss, wrkr).channel(classOf[NioServerSocketChannel]).childHandler(
@@ -29,7 +42,7 @@ private[netty] class Server(val at: Host, queue: BlockingQueue[Incoming]) extend
         ch.pipeline()
           .addLast(new LoggingHandler(LogLevel.INFO))
           // XXX Implement pickling with Netty Encoder/Decoder ChannelHandlers 
-          .addLast(new ForwardInboundHandler(queue))
+          .addLast(new ForwardInboundHandler(Server.this, mq))
     })
   // XXX are those options necessary?
   //.option(ChannelOption.SO_BACKLOG.asInstanceOf[ChannelOption[Any]], 128) 
@@ -37,17 +50,21 @@ private[netty] class Server(val at: Host, queue: BlockingQueue[Incoming]) extend
   logger.info("Server initializing done.")
 
   def run(): Unit = {
+    // Bind and start to accept incoming connections
     val cf = srvr.bind(at.port).sync()
     logger.info(s"Server listining at port ${at.port}.")
 
-    // XXX Calling silo system should not return before server is up and running
+    up success self
 
-    // wait until the server socket is closed
+    /* Wait until the server socket is closed.
+     *
+     * Note: Blocks JVM termination if [[silt.SiloSystem#terminate]] omitted.
+     */
     cf.channel().closeFuture().sync()
   }
 
   def stop(): Unit = {
-    logger.info("Server is shutting down...")
+    logger.info("Server shutdown...")
 
     /* In Nety 4.0, you can just call `shutdownGracefully` on the
      * `EventLoopGroup` that manages all your channels. Then all existing
@@ -62,14 +79,20 @@ private[netty] class Server(val at: Host, queue: BlockingQueue[Incoming]) extend
 
 }
 
+import io.netty.channel.ChannelInboundHandlerAdapter
+
 /** Server-side channel inbound handler */
-private[netty] class ForwardInboundHandler(queue: BlockingQueue[Incoming]) extends ChannelInboundHandlerAdapter with Logging {
+private[netty] class ForwardInboundHandler(srvr: Server, mq: BlockingQueue[Incoming]) extends ChannelInboundHandlerAdapter with Logging {
+
+  import io.netty.buffer.ByteBuf
+  import io.netty.channel.ChannelHandlerContext
+  import io.netty.util.CharsetUtil
 
   override def channelActive(ctx: ChannelHandlerContext): Unit = {
     logger.debug("Server inbound handler entered status `channelActive`.")
   }
 
-  /* Forward incoming messages to internal [[queue]].
+  /* Forward incoming messages to internal [[mq]] queue.
    *
    * Be aware that messages are not released after the
    * `channelRead(ChannelHandlerContext, Object)` method returns automatically.
@@ -82,7 +105,10 @@ private[netty] class ForwardInboundHandler(queue: BlockingQueue[Incoming]) exten
    */
   override def channelRead(ctx: ChannelHandlerContext, msg: Object): Unit = {
     logger.debug("Server inbound handler entered status `channelRead`.")
-    //queue.add(Incoming(ctx, msg))
+    msg.asInstanceOf[ByteBuf].toString(CharsetUtil.US_ASCII).trim() match {
+      case "shutdown" => srvr.stop // XXX mq add Terminate
+      case _          =>           // XXX mq add Incoming(ctx, msg)
+    }
   }
 
   // XXX Don't just close the connection when an exception is raised.

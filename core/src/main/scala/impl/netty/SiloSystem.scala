@@ -4,41 +4,46 @@ package netty
 
 import java.util.concurrent.{ BlockingQueue, LinkedBlockingQueue }
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.{ Await, Future, Promise }
-import scala.util.Try
+import scala.language.postfixOps
+import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
+import ExecutionContext.Implicits.{ global => executor }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
-/** A Netty-based implementation of a silo system.
-  *
-  * @param server underlying server for hosting silos
-  */
-class SiloSystem(server: Option[Server]) extends AnyRef with impl.SiloSystem with Logging {
+/** A Netty-based implementation of a silo system. */
+private[silt] class SiloSystem () extends AnyRef with impl.SiloSystem with Logging {
 
-  // for reflective instantiation
-  def this() = this(None)
+  override val name = (new java.rmi.dgc.VMID()).toString
 
-  server map { runnable =>
-    val executor: ExecutionContext = ExecutionContext.global
-    executor execute runnable
+  // The server if silo system is running in server mode.
+  val server: Option[Server] = None
+
+  // Mailbox the silo system rsp. the silo system's receptor is working on.
+  val mb: BlockingQueue[Incoming] = new LinkedBlockingQueue[Incoming]()
+
+  override def withServer(at: Option[Host]): Future[SiloSystem] = at match {
+    case None       => Future.successful(this) // XXX run in client mode
+    case Some(host) => 
+      /* Promise a silo system, and fufill this promise with the completed
+       * startup of the underlying server. Cf. [[Server#run]].
+       */
+      val started = Promise[SiloSystem]
+      executor execute new SiloSystem() with Server {
+        override val server: Option[Server] = Some(this)
+        override val name = host.toString
+        override val at = host
+        override val mq = mb
+        override val up = started
+      }
+      started.future
   }
 
-  // the queue the silo system rsp. the silo system's receptor is working on.
-  private val queue: BlockingQueue[Incoming] = new LinkedBlockingQueue[Incoming]()
-
-  override def withServer(at: Option[Host]): Try[SiloSystem] = Try {
-    at match {
-      case None       => this // XXX run in client mode
-      case Some(host) => new SiloSystem(Some(new Server(host, queue)))
+  override def terminate(): Unit =
+    server map { server => 
+      logger.debug("Silo system stops underlying server...")
+      // XXX re-assess sending specific, internal termination message to server
+      server.stop
     }
-  }
-
-  override def terminate(): Unit = {
-    logger.debug("Silo system terminates underlying server...")
-    // XXX re-assess alternative to send specific, internal termination message to server
-    server map (_.stop)
-  }
 
 }
 

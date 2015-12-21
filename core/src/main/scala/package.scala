@@ -13,7 +13,7 @@ package object silt {
     */
   final case class Host(address: String, port: Int) {
 
-    override val toString = s"$address:$port"
+    override val toString = s"$address @ $port"
 
   }
 
