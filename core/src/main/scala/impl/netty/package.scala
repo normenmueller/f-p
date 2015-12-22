@@ -5,8 +5,8 @@ import io.netty.channel.ChannelHandlerContext
 
 package object netty {
 
-  sealed abstract class Message
-  case class Incoming(ctx: ChannelHandlerContext, msg: Any) extends Message
+  private[netty] sealed abstract class Message
+  private[netty] case class Incoming(ctx: ChannelHandlerContext, msg: Any) extends Message
 
 }
 

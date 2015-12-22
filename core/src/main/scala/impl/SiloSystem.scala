@@ -5,7 +5,11 @@ import scala.concurrent.Future
 
 trait SiloSystem extends silt.SiloSystem with SiloSystemInternal {
 
-  def withServer(at: Option[Host]): Future[SiloSystem]
+  /** Return an implementation agnostic silo system.
+    *
+    * @param at [[Host network host]]
+    */
+  def withServer(at: Option[Host]): Future[silt.SiloSystem]
 
 }
 

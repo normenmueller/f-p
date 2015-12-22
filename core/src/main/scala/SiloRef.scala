@@ -4,11 +4,11 @@ import scala.concurrent.Future
 import scala.spores.Spore
 import scala.pickling.{ Pickler, Unpickler }
 
-/** Immutable and serializable handle to a silo. 
- *
- *  The referenced silo may or may not reside on the local host or inside the
- *  same silo system. A [[SiloRef]] can be obtained from [[SiloRefFactory]], an
- *  interface which is implemented by [[SiloSystem]].
+/** Immutable and serializable handle to a silo.
+  *
+  * The referenced silo may or may not reside on the local host or inside the
+  * same silo system. A [[SiloRef]] can be obtained from [[SiloRefFactory]], an
+  * interface which is implemented by [[SiloSystem]].
   *
   * @tparam T element type of the referenced silo
   */

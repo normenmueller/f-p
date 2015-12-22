@@ -17,7 +17,7 @@ import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
 private[netty] trait Server extends AnyRef with Runnable with Logging {
 
-  self: SiloSystem =>
+  self: silt.SiloSystem =>
 
   // Location where server is bound and started.
   def at: Host
@@ -26,11 +26,11 @@ private[netty] trait Server extends AnyRef with Runnable with Logging {
   def mq: BlockingQueue[Incoming]
 
   // Promise the server is up and running.
-  def up: Promise[SiloSystem]
+  def up: Promise[silt.SiloSystem]
 
-  val srvr = new ServerBootstrap
-  val boss = new NioEventLoopGroup
-  val wrkr = new NioEventLoopGroup
+  private val srvr = new ServerBootstrap
+  private val boss = new NioEventLoopGroup
+  private val wrkr = new NioEventLoopGroup
 
   /* Initialize a [[Netty-based http://netty.io/wiki/user-guide-for-4.x.html]]
    * server.
@@ -50,25 +50,24 @@ private[netty] trait Server extends AnyRef with Runnable with Logging {
   logger.info("Server initializing done.")
 
   def run(): Unit = {
-    // Bind and start to accept incoming connections
-    val cf = srvr.bind(at.port).sync()
+    srvr.bind(at.port).sync()
     logger.info(s"Server listining at port ${at.port}.")
 
     up success self
 
     /* Wait until the server socket is closed.
-     *
      * Note: Blocks JVM termination if [[silt.SiloSystem#terminate]] omitted.
+     * Note: No longer required due to [[silt.impl.netty.SiloSystem#latch]].
      */
-    cf.channel().closeFuture().sync()
+    //cf.channel().closeFuture().sync()
   }
 
   def stop(): Unit = {
     logger.info("Server shutdown...")
 
     /* In Nety 4.0, you can just call `shutdownGracefully` on the
-     * `EventLoopGroup` that manages all your channels. Then all existing
-     * channels will be closed automatically and the reconnection attempt should
+     * `EventLoopGroup` that manages all your channels. Then all ''existing
+     * channels will be closed automatically'' and reconnection attempts should
      * be rejected.
      */
     wrkr.shutdownGracefully()
@@ -82,7 +81,7 @@ private[netty] trait Server extends AnyRef with Runnable with Logging {
 import io.netty.channel.ChannelInboundHandlerAdapter
 
 /** Server-side channel inbound handler */
-private[netty] class ForwardInboundHandler(srvr: Server, mq: BlockingQueue[Incoming]) extends ChannelInboundHandlerAdapter with Logging {
+private[netty] class ForwardInboundHandler(sys: silt.SiloSystem, mq: BlockingQueue[Incoming]) extends ChannelInboundHandlerAdapter with Logging {
 
   import io.netty.buffer.ByteBuf
   import io.netty.channel.ChannelHandlerContext
@@ -106,8 +105,8 @@ private[netty] class ForwardInboundHandler(srvr: Server, mq: BlockingQueue[Incom
   override def channelRead(ctx: ChannelHandlerContext, msg: Object): Unit = {
     logger.debug("Server inbound handler entered status `channelRead`.")
     msg.asInstanceOf[ByteBuf].toString(CharsetUtil.US_ASCII).trim() match {
-      case "shutdown" => srvr.stop // XXX mq add Terminate
-      case _          =>           // XXX mq add Incoming(ctx, msg)
+      case "shutdown" => sys.terminate // XXX mq add Terminate
+      case _          => // XXX mq add Incoming(ctx, msg)
     }
   }
 

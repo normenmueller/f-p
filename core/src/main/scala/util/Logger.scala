@@ -14,7 +14,7 @@ import ch.qos.logback.classic.pattern._
   * %coloredLevel %logger{15} - %message%n%xException{5}
   * }}}
   */
-class ColoredLoggerLevel extends ClassicConverter {
+private[silt] class ColoredLoggerLevel extends ClassicConverter {
 
   override def convert(event: ILoggingEvent): String = event.getLevel match {
     case Level.TRACE => "[" + Colors.blue("trace") + "]"
@@ -25,7 +25,7 @@ class ColoredLoggerLevel extends ClassicConverter {
   }
 }
 
-object Colors {
+private[util] object Colors {
 
   import scala.Console._
 

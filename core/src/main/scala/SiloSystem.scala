@@ -30,7 +30,7 @@ object SiloSystem extends AnyRef with Logging {
     *
     * @param port network port
     */
-  def apply(port: Option[Int] = None): Try[Future[SiloSystem]] = Try { 
+  def apply(port: Option[Int] = None): Try[Future[SiloSystem]] = Try {
     val clazz = sys.props.getOrElse("silo.system.impl", "silt.impl.netty.SiloSystem")
     logger.info(s"Initializing silo system with `$clazz`")
     Class.forName(clazz).newInstance().asInstanceOf[impl.SiloSystem]
@@ -54,7 +54,7 @@ trait SiloSystem {
     * Port`.
     *
     * If the silo system is running is client mode, [[name]] defaults to the
-    * respective [[java.rmi.dgc.VMID VMID]]. 
+    * respective [[java.rmi.dgc.VMID VMID]].
     */
   def name: String
 
