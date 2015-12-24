@@ -10,15 +10,9 @@ import ExecutionContext.Implicits.{ global => executor }
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
 /** A Netty-based implementation of a silo system. */
-private[silt] class SiloSystem() extends AnyRef with impl.SiloSystem with Logging {
+private[netty] class SiloSystem() extends AnyRef with impl.SiloSystem with Logging {
 
-  override val name = (new java.rmi.dgc.VMID()).toString
-
-  // The server if silo system is running in server mode.
-  val srvr: Option[Server] = None
-
-  // Mailbox the silo system rsp. the silo system's receptor is working on.
-  val mb: BlockingQueue[Incoming] = new LinkedBlockingQueue[Incoming]()
+  self: silt.SiloSystem =>
 
   /* Synchronizer for this silo system.
    *
@@ -28,6 +22,8 @@ private[silt] class SiloSystem() extends AnyRef with impl.SiloSystem with Loggin
    * say, to terminate the silo system and the server, respectively.
    */
   val hook: Option[CountDownLatch] = None
+
+  override val name = (new java.rmi.dgc.VMID()).toString
 
   override def withServer(at: Option[Host]): Future[silt.SiloSystem] = at match {
     case None => Future.successful(this) // XXX run in client mode
@@ -40,31 +36,37 @@ private[silt] class SiloSystem() extends AnyRef with impl.SiloSystem with Loggin
 
         self: Server =>
 
+        // silt.SiloSytem w/ internals
         override val name = host.toString
-        override val srvr = Some(self)
-        override val hook = Some(new CountDownLatch(1))
+        override val server = Some(self)
 
+        // silt.Server
         override val at = host
-        override val mq = mb
+
+        // silt.impl.netty.SiloSystem
+        override val hook = Some(new CountDownLatch(1))
         override val up = started
 
-        srvr map { _ =>
-          (new Thread {
-            override def run(): Unit = hook map (_.await())
-          }).start()
-        }
+        (new Thread { override def run(): Unit = hook map (_.await()) }).start()
 
       }
       started.future
   }
 
   override def terminate(): Unit =
-    srvr map { s =>
+    //XXX statusOf map {
+    //  case (_, Connected(ch, workerGroup)) =>
+    //    // XXX Terminate Netty Channel: sendToChannel(ch, Terminate())
+    //    // XXX sync vs. await: ch.closeFuture().sync()
+    //    workerGroup.shutdownGracefully()
+    //  case _ => /* do nothing */
+    //}
+    server map { server =>
       logger.debug("Silo system stops underlying server...")
       /* XXX re-assess sending specific, internal termination message to server
        * to be enqueued at the internal message queue (`mq`)
        */
-      s.stop()
+      server.stop()
       hook map (_.countDown())
     }
 

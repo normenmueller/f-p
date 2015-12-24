@@ -86,15 +86,18 @@ trait SiloSystem {
  *
  * Those internal requirements are basically implementation details to be hidden
  * from the public API. For example, those internals abstract from different
- * network layer back-ends
+ * network layer back-ends (cf. [[Server]]).
  */
 private[silt] trait SiloSystemInternal {
+
+  /* Silo system's underlying server if running in server mode. */
+  def server: Option[Server] = None
 
   import scala.collection.mutable
   import scala.collection.concurrent.TrieMap
 
   /* Silo locations identified via respective SiloRef */
-  val location: mutable.Map[SiloRefId, Host] = new TrieMap[SiloRefId, Host]
+  def location: mutable.Map[SiloRefId, Host] = new TrieMap[SiloRefId, Host]
 
 }
 

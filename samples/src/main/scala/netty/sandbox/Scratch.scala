@@ -10,7 +10,7 @@ import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
 import silt.SiloSystem
 
-object Scratch extends AnyRef with App with Logging {
+object SiloSystemServerMode extends AnyRef with App with Logging {
 
   /* Run silo system in server mode.
    *
@@ -19,7 +19,9 @@ object Scratch extends AnyRef with App with Logging {
    */
   SiloSystem(port = Some(8091))
 
-  /*
+}
+
+object SiloSystemClientMode extends AnyRef with App with Logging {
 
   /* Run silo system in client-mode.
    *
@@ -34,9 +36,9 @@ object Scratch extends AnyRef with App with Logging {
   //   logger.error(s"Could not instantiate silo system at `localhost`:\n ${error.getMessage}")
   //}
 
-  */
+}
 
-  /*
+object SiloSystemDualMode extends AnyRef with App with Logging {
 
   /* Run silo system in dual mode.
    *
@@ -88,7 +90,6 @@ object Scratch extends AnyRef with App with Logging {
     case Failure(error) => logger.error(s"Could not instantiate silo system:\n ${error.getMessage}")
 
   }
-  */
 
 }
 
