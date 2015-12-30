@@ -22,7 +22,7 @@ object SiloSystem extends AnyRef with Logging {
     * The actual silo system implementation must be a subclass of
     * [[silt.impl.SiloSystem]] with a default, empty constructor. The concrete
     * realization is specified by the system property
-    * `-Dsilt.system.impl=<class>`. If no system property is given, the
+    * `-Dsilo.system.impl=<class>`. If no system property is given, the
     * realization defaults to [[silt.impl.netty.SiloSystem]].
     *
     * As default, in both cases, server as well as client mode, Netty is used to
@@ -59,12 +59,8 @@ trait SiloSystem {
   def name: String
 
   /** Terminates the silo system. */
-  /* XXX Terminate silo system 
-   * - Wait until all connections to/ from this silo system are closed
-   * - Timeout
-   * - Return type Future[Status]
-   */
-  def terminate(): Unit
+  // XXX Return type Future[Status]
+  def shutdown(): Unit
 
   ///** Uploads a silo to `host` with the initialization process of `clazz`.
   //  *

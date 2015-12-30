@@ -17,6 +17,10 @@ package object silt {
 
   }
 
+  sealed abstract class Message {
+    val payload: String
+  }
+
 }
 
 // vim: set tw=80 ft=scala:

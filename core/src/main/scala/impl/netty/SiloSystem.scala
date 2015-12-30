@@ -2,17 +2,15 @@ package silt
 package impl
 package netty
 
-import java.util.concurrent.{ BlockingQueue, CountDownLatch, LinkedBlockingQueue }
+import java.util.concurrent.CountDownLatch
 
-import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
+import scala.concurrent.{ ExecutionContext, Future, Promise }
 import ExecutionContext.Implicits.{ global => executor }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
 /** A Netty-based implementation of a silo system. */
-private[netty] class SiloSystem() extends AnyRef with impl.SiloSystem with Logging {
-
-  self: silt.SiloSystem =>
+class SiloSystem() extends AnyRef with impl.SiloSystem with Logging {
 
   /* Synchronizer for this silo system.
    *
@@ -21,7 +19,7 @@ private[netty] class SiloSystem() extends AnyRef with impl.SiloSystem with Loggi
    * pass. In the terminal state the gate opens, allowing all threads to pass,
    * say, to terminate the silo system and the server, respectively.
    */
-  val hook: Option[CountDownLatch] = None
+  protected val hook: Option[CountDownLatch] = None
 
   override val name = (new java.rmi.dgc.VMID()).toString
 
@@ -31,7 +29,7 @@ private[netty] class SiloSystem() extends AnyRef with impl.SiloSystem with Loggi
       /* Promise a silo system, and fulfill this promise with the completed
        * startup of the underlying server. Cf. [[Server#run]].
        */
-      val started = Promise[silt.SiloSystem]
+      val promise = Promise[silt.SiloSystem]
       executor execute new SiloSystem() with Server {
 
         self: Server =>
@@ -45,15 +43,20 @@ private[netty] class SiloSystem() extends AnyRef with impl.SiloSystem with Loggi
 
         // silt.impl.netty.SiloSystem
         override val hook = Some(new CountDownLatch(1))
-        override val up = started
+
+        // silt.impl.netty.Server
+        override val started = promise
 
         (new Thread { override def run(): Unit = hook map (_.await()) }).start()
 
       }
-      started.future
+      promise.future
   }
 
-  override def terminate(): Unit =
+  /* XXX Wait with timeout until all connections to/ from this silo system are
+   * closed
+   */
+  override def shutdown(): Unit = {
     //XXX statusOf map {
     //  case (_, Connected(ch, workerGroup)) =>
     //    // XXX Terminate Netty Channel: sendToChannel(ch, Terminate())
@@ -61,14 +64,16 @@ private[netty] class SiloSystem() extends AnyRef with impl.SiloSystem with Loggi
     //    workerGroup.shutdownGracefully()
     //  case _ => /* do nothing */
     //}
+    logger.debug("Silo system shutdown...")
     server map { server =>
-      logger.debug("Silo system stops underlying server...")
       /* XXX re-assess sending specific, internal termination message to server
        * to be enqueued at the internal message queue (`mq`)
        */
       server.stop()
       hook map (_.countDown())
     }
+    logger.debug("Silo system shutdown done.")
+  }
 
 }
 

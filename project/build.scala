@@ -44,8 +44,9 @@ object build extends Build with Formatting with Mappings {
           "io.netty"                    % "netty-all"       % "4.0.33.Final",
           "com.typesafe.scala-logging" %% "scala-logging"   % "3.1.0",
           "ch.qos.logback"              % "logback-classic" % "1.1.3",
-          "junit"                       % "junit-dep"       % "4.11" % "test",
-          "com.novocode"                % "junit-interface" % "0.11" % "test"
+          "junit"                       % "junit-dep"       % "4.11"  % "test",
+          "com.novocode"                % "junit-interface" % "0.11"  % "test",
+          "org.scalatest"              %% "scalatest"       % "2.2.4" % "test"
         ),
         compile in MultiJvm <<= (compile in MultiJvm) triggeredBy (compile in Test)
       )

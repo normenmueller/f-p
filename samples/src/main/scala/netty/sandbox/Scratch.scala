@@ -78,9 +78,7 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
           }
 
           // JVM does not terminate if the following call is commented out
-          logger.info("Silo system running in server-mode terminating itself...")
-          system.terminate()
-          logger.info("Silo system running in server-mode terminating itslef done.")
+          system.shutdown()
 
         case Failure(error) =>
           logger.error(s"Could not start silo system in server mode:\n ${error.getMessage}")
