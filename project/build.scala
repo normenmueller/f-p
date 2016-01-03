@@ -15,11 +15,11 @@ object build extends Build with Formatting with Mappings {
       "-unchecked"
     ), 
     resolvers ++= (if (version.value.endsWith("-SNAPSHOT")) List(Resolver.sonatypeRepo("snapshots")) else Nil),
-    parallelExecution in Global := false,
-    testOptions in Test += Tests.Argument(TestFrameworks.JUnit, "-q", "-v", "-s"),
+    //parallelExecution in Global := false,
+    //testOptions in Test += Tests.Argument(TestFrameworks.JUnit, "-q", "-v", "-s"),
     unmanagedSourceDirectories in Compile <<= (scalaSource in Compile)(Seq(_)),
     unmanagedSourceDirectories in Test <<= (scalaSource in Test)(Seq(_))
-  )  
+  )
 
   lazy val `f-p` = Project(
     id = "f-p",
@@ -34,7 +34,6 @@ object build extends Build with Formatting with Mappings {
     settings = standardSettings ++ 
       documentationSettings ++ 
       formatSettings ++ 
-      SbtMultiJvm.multiJvmSettings ++ 
       Seq(
         name := "f-p core",
         libraryDependencies ++= Seq(
@@ -44,26 +43,33 @@ object build extends Build with Formatting with Mappings {
           "io.netty"                    % "netty-all"       % "4.0.33.Final",
           "com.typesafe.scala-logging" %% "scala-logging"   % "3.1.0",
           "ch.qos.logback"              % "logback-classic" % "1.1.3",
-          "junit"                       % "junit-dep"       % "4.11"  % "test",
-          "com.novocode"                % "junit-interface" % "0.11"  % "test",
+          //"junit"                       % "junit-dep"       % "4.11"  % "test",
+          //"com.novocode"                % "junit-interface" % "0.11"  % "test",
           "org.scalatest"              %% "scalatest"       % "2.2.4" % "test"
-        ),
-        compile in MultiJvm <<= (compile in MultiJvm) triggeredBy (compile in Test)
+        )
       )
-  ) configs (MultiJvm)
+  )
 
   lazy val samples = Project(
     id = "samples",
     base = file("samples"),
     settings = standardSettings ++ 
+      documentationSettings ++ 
       formatSettings ++ 
+      SbtMultiJvm.multiJvmSettings ++ 
       Seq(
         name := "f-p samples",
+        scalaSource in Compile := baseDirectory.value / "src"/ "single-jvm" / "main" / "scala",
+        resourceDirectory in Compile := baseDirectory.value / "src"/ "single-jvm" / "main" / "resources",
+        scalaSource in Test := baseDirectory.value / "src"/ "single-jvm" / "test" / "scala",
+        resourceDirectory in Test := baseDirectory.value / "src"/ "single-jvm" / "test" / "resources",
+        compile in MultiJvm <<= (compile in MultiJvm) triggeredBy (compile in Test),
+        parallelExecution in Test := false,
         libraryDependencies ++= Seq(
           "com.typesafe.scala-logging" %% "scala-logging"   % "3.1.0",
           "ch.qos.logback"              % "logback-classic" % "1.1.3"
+        )
       )
-    )
-  ) dependsOn(`core`)
+  ) dependsOn(core) configs(MultiJvm) 
 
 }
