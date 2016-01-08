@@ -15,7 +15,7 @@ object build extends Build with Formatting with Mappings {
       "-unchecked"
     ), 
     resolvers ++= (if (version.value.endsWith("-SNAPSHOT")) List(Resolver.sonatypeRepo("snapshots")) else Nil),
-    //parallelExecution in Global := false,
+    parallelExecution in Global := false,
     //testOptions in Test += Tests.Argument(TestFrameworks.JUnit, "-q", "-v", "-s"),
     unmanagedSourceDirectories in Compile <<= (scalaSource in Compile)(Seq(_)),
     unmanagedSourceDirectories in Test <<= (scalaSource in Test)(Seq(_))

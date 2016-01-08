@@ -35,10 +35,10 @@ private[netty] class Forwarder(receptor: Receptor) extends SimpleChannelInboundH
     logger.debug("Server inbound handler entered status `channelRead`.")
     // receptor add Incoming(ctx, msg)
     //msg.asInstanceOf[ByteBuf].toString(io.netty.util.CharsetUtil.US_ASCII).trim() match {
-    msg.payload.trim() match {
-      case "shutdown" => receptor.system.shutdown
-      case _          => receptor add Incoming(ctx, msg)
-    }
+    //msg.payload.trim() match {
+    //  case "shutdown" => receptor.system.shutdown
+    //  case _          => receptor add Incoming(ctx, msg)
+    //}
   }
 
   // XXX Don't just close the connection when an exception is raised.

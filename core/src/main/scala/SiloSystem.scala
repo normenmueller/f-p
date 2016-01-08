@@ -1,6 +1,7 @@
 package silt
 
 import scala.concurrent.Future
+import scala.pickling._
 import scala.util.{ Try, Success, Failure }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
@@ -50,16 +51,19 @@ trait SiloSystem {
 
   /** Returns the name of the silo system.
     *
-    * If the silo system is running in server mode, [[name]] defaults to `Host @
-    * Port`.
+    * If the silo system is running in server mode, [[name]] defaults to
+    * `Host:Port`.
     *
     * If the silo system is running is client mode, [[name]] defaults to the
     * respective [[java.rmi.dgc.VMID VMID]].
     */
   def name: String
 
+  def populateTo[T](at: Host)(data: () => Silo[T])(implicit pickler: Pickler[InitSiloFromFun[T]]): Future[SiloRef[T]] =
+    ???
+
   /** Terminates the silo system. */
-  // XXX Return type Future[Status]
+  // XXX Return type Future[Terminated]
   def shutdown(): Unit
 
   ///** Uploads a silo to `host` with the initialization process of `clazz`.
@@ -89,11 +93,11 @@ private[silt] trait SiloSystemInternal {
   /* Silo system's underlying server if running in server mode. */
   def server: Option[Server] = None
 
-  import scala.collection.mutable
-  import scala.collection.concurrent.TrieMap
+  //import scala.collection._
+  //import scala.collection.concurrent.TrieMap
 
   /* Silo locations identified via respective SiloRef */
-  def location: mutable.Map[SiloRefId, Host] = new TrieMap[SiloRefId, Host]
+  // XXX def location: mutable.Map[SiloRef, Host] = new TrieMap[SiloRef, Host]
 
 }
 

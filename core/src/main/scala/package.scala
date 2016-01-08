@@ -1,6 +1,11 @@
 /** This package, [[silt]], contains ...
   */
 package object silt {
+  import java.util.concurrent.atomic.AtomicInteger
+
+  private[silt] val ids = new AtomicInteger(0)
+
+  private[silt] val JID = new java.rmi.dgc.VMID()
 
   /** A [[https://en.wikipedia.org/wiki/Host_(network) network host]] is a
     * computer or other device connected to a computer network. A network host
@@ -13,13 +18,15 @@ package object silt {
     */
   final case class Host(address: String, port: Int) {
 
-    override val toString = s"$address @ $port"
+    override val toString = s"$address:$port"
 
   }
 
-  sealed abstract class Message {
-    val payload: String
-  }
+  // System messages
+
+  private[silt] sealed abstract class Message
+
+  case class InitSiloFromFun[T](data: () => Silo[T]) extends Message
 
 }
 

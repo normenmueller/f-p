@@ -51,10 +51,10 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
     /* At this level correctness of a silo system realization is verified. That
      * is, subtyping correctness re [[impl.SiloSystem]].
      */
-    case Success(system) => 
+    case Success(system) =>
       system onComplete {
 
-        case Success(system) => 
+        case Success(system) =>
           logger.info(s"Silo system in server mode up and running at `${system.name}`.")
 
           /* Here it is demonstrated what running a silo system in dual mode
