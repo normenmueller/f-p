@@ -4,7 +4,7 @@ package netty
 
 import java.util.concurrent.BlockingQueue
 
-import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.{ ChannelFutureListener, ChannelHandlerContext }
 //import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.SimpleChannelInboundHandler
 import io.netty.util.ReferenceCountUtil
@@ -41,10 +41,17 @@ private[netty] class Forwarder(receptor: Receptor) extends SimpleChannelInboundH
     //}
   }
 
-  // XXX Don't just close the connection when an exception is raised.
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
     cause.printStackTrace()
-    ctx.close()
+
+    // Don't just close the connection when an exception is raised.
+    //ctx.close()
+
+    if (ctx.channel().isActive())
+      ctx.writeAndFlush("ERR: " +
+        cause.getClass().getSimpleName() + ": " +
+        cause.getMessage() + '\n'
+      ).addListener(ChannelFutureListener.CLOSE)
   }
 
 }
