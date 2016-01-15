@@ -1,0 +1,61 @@
+package silt
+package impl
+package netty
+
+import java.util.concurrent.BlockingQueue
+
+import io.netty.channel.{ ChannelFutureListener, ChannelHandlerContext }
+import io.netty.channel.SimpleChannelInboundHandler
+
+import com.typesafe.scalalogging.{ StrictLogging => Logging }
+
+/* Forward incoming messages from Netty's event loop to [[silt.Processor silo
+ * system's system message processor]].
+ *
+ * Be aware that due to the default constructor parameter of
+ * [[io.netty.channel.SimpleChannelInboundHandler]] all messages will be
+ * released by passing them to
+ * [[io.netty.util.ReferenceCountUtil#release(Object)]].
+ */
+// private[netty] class Forwarder(receptor: Receptor) extends ChannelInboundHandlerAdapter with Logging {
+private[netty] class Forwarder(processor: Processor) extends SimpleChannelInboundHandler[silt.Message] with Logging {
+
+  override def channelActive(ctx: ChannelHandlerContext): Unit = {
+    logger.debug("Server inbound handler entered status `channelActive`.")
+  }
+
+  /* XXX Obsolete; Valid for ChannelInboundHandlerAdapter
+   *
+   * Forward incoming messages to internal [[mq]] queue.
+   *
+   * Be aware that messages are not released after the
+   * `channelRead(ChannelHandlerContext, Object)` method returns automatically.
+   *
+   * In case of a default, Netty-based, ''server mode'' silo system realization,
+   * the [[Receptor]] will release the message.
+   *
+   * In case of a default, Netty-based, ''client mode'' silo system realization,
+   * XXX will release the message.
+   */
+  //override def channelRead(ctx: ChannelHandlerContext, msg: silt.Message): Unit = {
+  override def channelRead0(ctx: ChannelHandlerContext, msg: silt.Message): Unit = {
+    logger.debug("Server inbound handler entered status `channelRead`.")
+    processor process msg
+  }
+
+  override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
+    cause.printStackTrace()
+
+    // Don't just close the connection when an exception is raised.
+    //ctx.close()
+
+    if (ctx.channel().isActive())
+      ctx.writeAndFlush("ERR: " +
+        cause.getClass().getSimpleName() + ": " +
+        cause.getMessage() + '\n'
+      ).addListener(ChannelFutureListener.CLOSE)
+  }
+
+}
+
+// vim: set tw=80 ft=scala:

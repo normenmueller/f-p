@@ -1,2 +1,2 @@
 // `scalacOptions` for sbt itself
-scalacOptions += "-deprecation"
+scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")

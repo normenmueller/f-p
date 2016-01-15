@@ -1,5 +1,4 @@
-//package silt.samples
-package netty
+package multijvm
 package sandbox
 
 object SampleMultiJvmNode1 {

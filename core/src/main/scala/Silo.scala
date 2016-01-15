@@ -1,10 +1,6 @@
 package silt
 
-import java.rmi.dgc.VMID
-
 import scala.concurrent.Future
-import scala.spores.Spore
-import scala.pickling.{ Pickler, Unpickler }
 
 /**
   */

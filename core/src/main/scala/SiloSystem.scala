@@ -1,6 +1,11 @@
 package silt
 
+import java.util.concurrent.atomic.AtomicInteger
+
+import scala.collection._
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.pickling._
 import scala.util.{ Try, Success, Failure }
 
@@ -21,10 +26,10 @@ object SiloSystem extends AnyRef with Logging {
     * In case of none port is given, the silo system runs in client mode.
     *
     * The actual silo system implementation must be a subclass of
-    * [[silt.impl.SiloSystem]] with a default, empty constructor. The concrete
+    * [[silt.impl.Requirements]] with a default, empty constructor. The concrete
     * realization is specified by the system property
     * `-Dsilo.system.impl=<class>`. If no system property is given, the
-    * realization defaults to [[silt.impl.netty.SiloSystem]].
+    * realization defaults to [[silt.impl.SiloSystem]].
     *
     * As default, in both cases, server as well as client mode, Netty is used to
     * realize the network layer.
@@ -32,10 +37,15 @@ object SiloSystem extends AnyRef with Logging {
     * @param port network port
     */
   def apply(port: Option[Int] = None): Try[Future[SiloSystem]] = Try {
-    val clazz = sys.props.getOrElse("silo.system.impl", "silt.impl.netty.SiloSystem")
+    val clazz = sys.props.getOrElse("silo.system.impl", "silt.impl.SiloSystem")
     logger.info(s"Initializing silo system with `$clazz`")
-    Class.forName(clazz).newInstance().asInstanceOf[impl.SiloSystem]
-  } map (_ withServer (port map (Host("127.0.0.1", _))))
+    Class.forName(clazz).newInstance().asInstanceOf[silt.impl.Requirements]
+  } map { system =>
+    port match {
+      case None       => Future.successful(system.self)
+      case Some(port) => system withServer Host("127.0.0.1", port)
+    }
+  }
 
 }
 
@@ -45,9 +55,9 @@ object SiloSystem extends AnyRef with Logging {
   * a collection of silos. On the technical level, it constitutes the interface
   * to the F-P runtime.
   */
-trait SiloSystem {
+trait SiloSystem extends SiloRefFactory with Logging /* XXX TESTING */with silt.impl.Transfer /* XXX */ {
 
-  self: SiloSystemInternal =>
+  self: Internals =>
 
   /** Returns the name of the silo system.
     *
@@ -59,46 +69,57 @@ trait SiloSystem {
     */
   def name: String
 
-  def populateTo[T](at: Host)(data: () => Silo[T])(implicit pickler: Pickler[InitSiloFromFun[T]]): Future[SiloRef[T]] =
-    ???
+  /** Terminate the silo system.
+    */
+  def terminate(): Future[Terminated]
 
-  /** Terminates the silo system. */
-  // XXX Return type Future[Terminated]
-  def shutdown(): Unit
+  // Members declared in silt.SiloRefFactory
 
-  ///** Uploads a silo to `host` with the initialization process of `clazz`.
-  //  *
-  //  * Note: `clazz` must provide methods for the silo initialization process.
-  //  * This constrain is not yet specified on the type level.
-  //  *
-  //  * @param clazz logic to initialize the to be created silo
-  //  * @param host location of the to be created silo
-  //  */
-  //def fromClass[U, T <: Traversable[U]](clazz: Class[_], host: Host): Future[SiloRef[U, T]] =
-  //  initRequest[U, T, InitSilo](host, {
-  //    //println(s"fromClass: register location of $refId")
-  //    InitSilo(clazz.getName())
-  //  })
+  override final def populate[T](fac: SiloFactory[T])(at: Host)(implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] =
+    initiate(at) { id => Populate(id, fac) } map {
+      case reply: Populated =>
+        logger.debug(s"`$name` received from `$at` message `Populated` with message Id `${reply.id}` and correlation Id `${reply.cor}`.")
+        ???
+      case _ => throw new Exception(s"Silo population at `$at` failed.")
+    }
 
 }
 
-/* Internal requirements of a silo system.
+/* Internals of a silo system.
  *
  * Those internal requirements are basically implementation details to be hidden
  * from the public API. For example, those internals abstract from different
  * network layer back-ends (cf. [[Server]]).
  */
-private[silt] trait SiloSystemInternal {
+private[silt] trait Internals {
 
-  /* Silo system's underlying server if running in server mode. */
+  /* Underlying server if running in server mode.
+   */
   def server: Option[Server] = None
 
-  //import scala.collection._
-  //import scala.collection.concurrent.TrieMap
+  /* System message processor.
+   */
+  //def processor: Processor
 
-  /* Silo locations identified via respective SiloRef */
-  // XXX def location: mutable.Map[SiloRef, Host] = new TrieMap[SiloRef, Host]
+  def initiate[R <: silt.Request: Pickler](to: Host)(request: Id => R): Future[silt.Response]
 
+  ///* Send a request */
+  //// XXX Return `Future[SelfDesribing]`?
+  //def send[R <: silt.Request : Pickler](to: Host, request: R): Future[silt.Response]
+
+  /* Set of addressable silos */
+  // XXX With `Id` still required?
+  //def location: mutable.Map[Id, Unit] = new TrieMap[Id, Unit]
+
+  private val refId = new AtomicInteger(0)
+
+  object id {
+
+    private val ids = new AtomicInteger(10)
+
+    def next = Id(ids.incrementAndGet())
+
+  }
 }
 
 // vim: set tw=80 ft=scala:

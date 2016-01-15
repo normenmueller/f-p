@@ -1,6 +1,5 @@
 package silt
 package impl
-package netty
 
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -22,36 +21,35 @@ trait Server extends AnyRef with silt.Server with Logging {
 
   /** Promise the server is up and running.
     *
-    * To fulfill this promise use `self` tied to [[silt.SiloSytem]].
+    * To fulfill this promise use `self` tied to [[silt.SiloSystem]].
     */
-  protected def started: Promise[silt.SiloSystem]
+  protected def started: Promise[silt.SiloSystem with Server]
 
   // Netty server constituents
-  private val srvr = new ServerBootstrap
+  private val server = new ServerBootstrap
   private val boss = new NioEventLoopGroup
-  private val wrkr = new NioEventLoopGroup
+  private val worker = new NioEventLoopGroup
+
+  // XXX new LengthFieldBasedFrameDecoder ?
+  // XXX new ChunkedWriteHandler() ?
+  private val encoder = new SystemMessageEncoder()
+  private val decoder = new SystemMessageDecoder()
+  // XXX private val forwarder = new Forwarder(processor)
 
   // Worker for all incoming messages from all channels.
-  private val receptor = new Receptor(self, new LinkedBlockingQueue[Incoming]())
+  //private val receptor = new Receptor(self, new LinkedBlockingQueue[Incoming]())
 
-  /* Initialize a [[Netty-based http://netty.io/wiki/user-guide-for-4.x.html]]
-   * server.
-   */
-  logger.info("Server initializing...")
-  srvr.group(boss, wrkr).channel(classOf[NioServerSocketChannel]).childHandler(
+  /* Initialize a [[Netty-based http://goo.gl/0Z9pZM]] server. */
+  logger.debug("Server initializing...")
+  server.group(boss, worker).channel(classOf[NioServerSocketChannel]).childHandler(
     new ChannelInitializer[SocketChannel]() {
       override def initChannel(ch: SocketChannel): Unit =
-        ch.pipeline()
-          .addLast(new Logger(LogLevel.INFO))
-          // XXX LengthFieldBasedFrameDecoder ?
-          .addLast(new SystemMessageDecoder())
-          .addLast(new SystemMessageEncoder())
-          .addLast(new Forwarder(receptor)) // XXX @Sharable ?
+        ch.pipeline().addLast(new Logger(LogLevel.TRACE), encoder, decoder /* XXX, forwarder */ )
     })
   // XXX are those options necessary?
   //.option(ChannelOption.SO_BACKLOG.asInstanceOf[ChannelOption[Any]], 128) 
   //.childOption(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
-  logger.info("Server initializing done.")
+  logger.debug("Server initializing done.")
 
   /** Start server.
     *
@@ -60,8 +58,8 @@ trait Server extends AnyRef with silt.Server with Logging {
   override def run(): Unit = {
     logger.debug("Server start...")
 
-    receptor.start()
-    srvr.bind(at.port).sync()
+    // XXX receptor.start()
+    server.bind(at.port).sync()
     started success self
 
     logger.debug("Server start done.")
@@ -78,8 +76,8 @@ trait Server extends AnyRef with silt.Server with Logging {
   override def stop(): Unit = {
     logger.info("Server stop...")
 
-    receptor.stop()
-    wrkr.shutdownGracefully()
+    // XXX receptor.stop()
+    worker.shutdownGracefully()
     boss.shutdownGracefully()
 
     logger.info("Server stop done.")

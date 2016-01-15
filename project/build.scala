@@ -37,9 +37,10 @@ object build extends Build with Formatting with Mappings {
       Seq(
         name := "f-p core",
         libraryDependencies ++= Seq(
-          "org.scala-lang.modules"     %% "spores-core"     % "0.1.3",
-          "org.scala-lang.modules"     %% "spores-pickling" % "0.1.3",
-          "com.typesafe.akka"           % "akka-actor_2.11" % "2.3.12",
+          //"org.scala-lang.modules"     %% "spores-core"     % "0.1.3",
+          //"org.scala-lang.modules"     %% "spores-pickling" % "0.1.3",
+          "org.scala-lang.modules"     %% "scala-pickling"  % "0.10.1", 
+          //"com.typesafe.akka"           % "akka-actor_2.11" % "2.3.12",
           "io.netty"                    % "netty-all"       % "4.0.33.Final",
           "com.typesafe.scala-logging" %% "scala-logging"   % "3.1.0",
           "ch.qos.logback"              % "logback-classic" % "1.1.3",
@@ -64,6 +65,7 @@ object build extends Build with Formatting with Mappings {
         scalaSource in Test := baseDirectory.value / "src"/ "single-jvm" / "test" / "scala",
         resourceDirectory in Test := baseDirectory.value / "src"/ "single-jvm" / "test" / "resources",
         compile in MultiJvm <<= (compile in MultiJvm) triggeredBy (compile in Test),
+        fork in run := true,
         parallelExecution in Test := false,
         libraryDependencies ++= Seq(
           "com.typesafe.scala-logging" %% "scala-logging"   % "3.1.0",

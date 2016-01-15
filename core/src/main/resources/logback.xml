@@ -4,12 +4,12 @@
     
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%coloredLevel %-25logger{25} - %message%n%xException{5}</pattern>
+      <pattern>%coloredLevel %-30logger{30} - %message%n%xException{5}</pattern>
     </encoder>
   </appender>
   
-  <logger name="io.netty"         level="INFO" />
-  <logger name="silt.impl.netty"  level="DEBUG" />
+  <logger name="io.netty"  level="INFO"  />
+  <logger name="silt.impl" level="TRACE" />
   
   <root level="DEBUG">
     <appender-ref ref="STDOUT" />
