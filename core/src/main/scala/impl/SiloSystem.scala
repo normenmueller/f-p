@@ -12,7 +12,7 @@ import scala.pickling.Defaults._
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
 /** A Netty-based implementation of a silo system. */
-class SiloSystem extends AnyRef with silt.impl.Requirements with Transfer with Logging {
+class SiloSystem extends AnyRef with silt.SiloSystem with silt.Internals with Transfer with Logging {
 
   /* Synchronizer for this silo system.
    *
@@ -33,8 +33,8 @@ class SiloSystem extends AnyRef with silt.impl.Requirements with Transfer with L
 
   override val name = (new java.rmi.dgc.VMID()).toString
 
-  override def terminate(): Future[Terminated] = {
-    val promise = Promise[Terminated]
+  override def terminate(): Future[Unit] = {
+    val promise = Promise[Unit]
 
     // Close connections TO other silo systems
     logger.trace("Close connctions to other silo systems")
@@ -54,14 +54,14 @@ class SiloSystem extends AnyRef with silt.impl.Requirements with Transfer with L
     println("4")
 
     // Terminate underlying server
-    Future.sequence(to /*, from*/ ) onComplete {
-      case _ =>
-        println("5")
-        server map { _.stop() }
-        println("6")
-        hook map { _.countDown() }
-        promise success Terminated("Silo system shutdown done.")
-    }
+    // Future.sequence(to /*, from*/ ) onComplete {
+    //   case _ =>
+    //     println("5")
+    //     server map { _.stop() }
+    //     println("6")
+    //     hook map { _.countDown() }
+    //     promise success (())
+    // }
 
     promise.future
   }
@@ -73,8 +73,6 @@ class SiloSystem extends AnyRef with silt.impl.Requirements with Transfer with L
   override def initiate[R <: silt.Request: Pickler](to: Host)(request: Id => R): Future[silt.Response] =
     connect(to) flatMap { via => send(via, request(id.next)) }
 
-  // Members declared in silt.impl.SiloSystem
-
   override def withServer(host: Host): Future[silt.SiloSystem with Server] = {
     /* Promise a silo system, and fulfill this promise with the completed
      * startup of the underlying server. Cf. [[Server#run]].
@@ -82,12 +80,8 @@ class SiloSystem extends AnyRef with silt.impl.Requirements with Transfer with L
     val promise = Promise[silt.SiloSystem with Server]
     executor execute (new SiloSystem with Server {
 
-      // Note, `self` is occupied by `silt.impl.Requirements`
-      this: silt.Server =>
-
       // silt.SiloSytem w/ internals
       override val name = host.toString
-      override val server = Some(this)
 
       // silt.Server
       override val at = host

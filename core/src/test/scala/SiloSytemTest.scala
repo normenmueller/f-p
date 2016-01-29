@@ -10,15 +10,15 @@ import org.scalatest.{ FlatSpec, Matchers }
 class SiloSystemTest extends FlatSpec with Matchers {
 
   "Instantiation" should "yield a default silo system" in {
-    silt.SiloSystem() map { _ map { _ shouldBe a [silt.SiloSystem] } }
+    silt.SiloSystem() map { _ shouldBe a [silt.SiloSystem] }
   }
 
   it should "fulfill the implementation requirements of a silo system" in {
-    silt.SiloSystem() map { _ map { _ shouldBe a [silt.impl.Requirements] } }
+    silt.SiloSystem() map { _ shouldBe a [silt.impl.Requirements] }
   }
 
   it should "use default, Netty-based realization" in {
-    silt.SiloSystem() map { _ map { _ shouldBe a [silt.impl.SiloSystem] } }
+    silt.SiloSystem() map { _ shouldBe a [silt.impl.SiloSystem] }
   }
 
   it should "throw an execption in case of wrong `silo.system.impl` parameter" in {
@@ -34,3 +34,5 @@ class SiloSystemTest extends FlatSpec with Matchers {
   }
 
 }
+
+// vim: set tw=80 ft=scala:

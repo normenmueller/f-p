@@ -35,3 +35,5 @@ class SiloRefTest extends FlatSpec with Matchers {
   //}
 
 }
+
+// vim: set tw=80 ft=scala:

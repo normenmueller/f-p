@@ -36,13 +36,13 @@ object SiloSystem extends AnyRef with Logging {
     *
     * @param port network port
     */
-  def apply(port: Option[Int] = None): Try[Future[SiloSystem]] = Try {
+  def apply(port: Option[Int] = None): Future[SiloSystem] = Future {
     val clazz = sys.props.getOrElse("silo.system.impl", "silt.impl.SiloSystem")
     logger.info(s"Initializing silo system with `$clazz`")
-    Class.forName(clazz).newInstance().asInstanceOf[silt.impl.Requirements]
-  } map { system =>
+    Class.forName(clazz).newInstance().asInstanceOf[silt.SiloSystem with silt.Internals]
+  } flatMap { system =>
     port match {
-      case None       => Future.successful(system.self)
+      case None       => Future.successful(system)
       case Some(port) => system withServer Host("127.0.0.1", port)
     }
   }
@@ -55,7 +55,7 @@ object SiloSystem extends AnyRef with Logging {
   * a collection of silos. On the technical level, it constitutes the interface
   * to the F-P runtime.
   */
-trait SiloSystem extends SiloRefFactory with Logging /* XXX TESTING */with silt.impl.Transfer /* XXX */ {
+trait SiloSystem extends SiloRefFactory with Logging /* XXX TESTING */ with silt.impl.Transfer /* XXX */ {
 
   self: Internals =>
 
@@ -71,7 +71,7 @@ trait SiloSystem extends SiloRefFactory with Logging /* XXX TESTING */with silt.
 
   /** Terminate the silo system.
     */
-  def terminate(): Future[Terminated]
+  def terminate(): Future[Unit]
 
   // Members declared in silt.SiloRefFactory
 
@@ -93,9 +93,11 @@ trait SiloSystem extends SiloRefFactory with Logging /* XXX TESTING */with silt.
  */
 private[silt] trait Internals {
 
-  /* Underlying server if running in server mode.
-   */
-  def server: Option[Server] = None
+  /** Return an implementation agnostic silo system running in server mode.
+    *
+    * @param at [[Host network host]]
+    */
+  def withServer(at: Host): Future[silt.SiloSystem with Server]
 
   /* System message processor.
    */
@@ -111,7 +113,7 @@ private[silt] trait Internals {
   // XXX With `Id` still required?
   //def location: mutable.Map[Id, Unit] = new TrieMap[Id, Unit]
 
-  private val refId = new AtomicInteger(0)
+  val refId = new AtomicInteger(0)
 
   object id {
 
@@ -120,6 +122,7 @@ private[silt] trait Internals {
     def next = Id(ids.incrementAndGet())
 
   }
+
 }
 
 // vim: set tw=80 ft=scala:

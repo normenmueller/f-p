@@ -15,7 +15,7 @@ import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
-trait Server extends AnyRef with silt.Server with Logging {
+trait Server extends AnyRef with silt.Server with Runnable with Logging {
 
   self: silt.SiloSystem =>
 
@@ -51,11 +51,13 @@ trait Server extends AnyRef with silt.Server with Logging {
   //.childOption(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
   logger.debug("Server initializing done.")
 
+  // Members declared in silt.Server
+
   /** Start server.
     *
     * Start and bind server to accept incoming connections at port `at.port`.
     */
-  override def run(): Unit = {
+  override def start(): Unit = {
     logger.debug("Server start...")
 
     // XXX receptor.start()
@@ -83,6 +85,9 @@ trait Server extends AnyRef with silt.Server with Logging {
     logger.info("Server stop done.")
   }
 
+  // Members declared in java.lang.Runnable
+
+  override def run(): Unit = start()
 }
 
 // vim: set tw=80 ft=scala:

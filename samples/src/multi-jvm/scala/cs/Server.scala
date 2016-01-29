@@ -28,12 +28,9 @@ object ExampleMultiJvmServer extends AnyRef with Logging {
   def main(args: Array[String]): Unit = 
     /* Start a silo system in server mode.
      */
-    SiloSystem(port = Some(8090)) match {
-      case Success(sys) => sys onComplete {
-        case Success(sys) => info(s"Silo system in server mode up and running (${sys.name}).")
-        case Failure(err)  => error(s"Could not start silo system in server mode:\n ${err.getMessage}")
-      }
-      case Failure(err) => error(s"Could not instantiate silo system at `Node1`:\n ${err.getMessage}")
+    SiloSystem(port = Some(8090)) onComplete {
+      case Success(sys) => info(s"Silo system in server mode up and running (${sys.name}).")
+      case Failure(err)  => error(s"Could not start silo system in server mode:\n ${err.getMessage}")
     }
 
 }

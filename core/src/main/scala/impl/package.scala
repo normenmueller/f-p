@@ -10,12 +10,6 @@ import io.netty.channel.{ Channel, ChannelFuture, ChannelFutureListener, Channel
 
 package object impl {
 
-  // Implementation requirements
-
-  trait Requirements extends silt.SiloSystem with silt.Internals with silt.Hostable {
-    val self: silt.SiloSystem = this
-  }
-
   // Connection status
 
   import io.netty.channel.{ Channel, EventLoopGroup }

@@ -53,10 +53,7 @@ communication all for free, all in a friendly collections/futures-like package!
   def main(args: Array[String]): Unit = { 
     /* Start a silo system in client mode.
      */
-    val system = SiloSystem() match {
-      case Success(system) => Await.result(system, 10.seconds)
-      case Failure(error)  => sys.error(s"Could not instantiate silo system:\n ${error.getMessage}")
-    }
+    val system = Await.result(SiloSystem(), 10.seconds)
     logger.info(s"Silo system in client mode up and running (${system.name}).")
 
     /* Specify the location where to publish data.
