@@ -1,7 +1,7 @@
 package silt
 package impl
 
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
 
 import scala.concurrent.{ ExecutionContext, Promise }
 import ExecutionContext.Implicits.{ global => executor }
@@ -18,6 +18,8 @@ import com.typesafe.scalalogging.{ StrictLogging => Logging }
 trait Server extends AnyRef with silt.Server with Runnable with Logging {
 
   self: silt.SiloSystem =>
+
+  import logger._
 
   /** Promise the server is up and running.
     *
@@ -36,20 +38,28 @@ trait Server extends AnyRef with silt.Server with Runnable with Logging {
   private val decoder = new SystemMessageDecoder()
   // XXX private val forwarder = new Forwarder(processor)
 
+  private val latch: CountDownLatch = new CountDownLatch(1)
+
   // Worker for all incoming messages from all channels.
   //private val receptor = new Receptor(self, new LinkedBlockingQueue[Incoming]())
 
   /* Initialize a [[Netty-based http://goo.gl/0Z9pZM]] server. */
-  logger.debug("Server initializing...")
-  server.group(boss, worker).channel(classOf[NioServerSocketChannel]).childHandler(
-    new ChannelInitializer[SocketChannel]() {
-      override def initChannel(ch: SocketChannel): Unit =
-        ch.pipeline().addLast(new Logger(LogLevel.TRACE), encoder, decoder /* XXX, forwarder */ )
+  trace("Server initializing...")
+  server.group(boss, worker)
+    .channel(classOf[NioServerSocketChannel])
+    .childHandler(new ChannelInitializer[SocketChannel]() {
+      override def initChannel(ch: SocketChannel): Unit = {
+        val pipeline = ch.pipeline()
+        pipeline.addLast("Logger", new Logger(LogLevel.TRACE))
+        pipeline.addLast("Encoder", encoder)
+        pipeline.addLast("Decoder", decoder)
+        // XXX pipeline.addLast("Server|Forwarder", forwarder)
+      }
     })
   // XXX are those options necessary?
   //.option(ChannelOption.SO_BACKLOG.asInstanceOf[ChannelOption[Any]], 128) 
   //.childOption(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
-  logger.debug("Server initializing done.")
+  trace("Server initializing done.")
 
   // Members declared in silt.Server
 
@@ -58,14 +68,16 @@ trait Server extends AnyRef with silt.Server with Runnable with Logging {
     * Start and bind server to accept incoming connections at port `at.port`.
     */
   override def start(): Unit = {
-    logger.debug("Server start...")
+    trace("Server start...")
 
     // XXX receptor.start()
     server.bind(at.port).sync()
     started success self
 
-    logger.debug("Server start done.")
-    logger.info(s"Server listining at port ${at.port}.")
+    trace("Server start done.")
+    info(s"Server listining at port ${at.port}.")
+
+    (new Thread { override def run(): Unit = latch.await() }).start()
   }
 
   /** Stop server.
@@ -76,13 +88,14 @@ trait Server extends AnyRef with silt.Server with Runnable with Logging {
     * be rejected.
     */
   override def stop(): Unit = {
-    logger.info("Server stop...")
+    trace("Server stop...")
 
     // XXX receptor.stop()
     worker.shutdownGracefully()
     boss.shutdownGracefully()
+    latch.countDown()
 
-    logger.info("Server stop done.")
+    trace("Server stop done.")
   }
 
   // Members declared in java.lang.Runnable

@@ -24,7 +24,7 @@ private[impl] class SystemMessageEncoder extends MessageToByteEncoder[silt.Messa
    * [[_root_.io.netty.channel.ChannelOutboundHandler]] in the pipeline.
    */
   override def encode(ctx: ChannelHandlerContext, msg: silt.Message, out: ByteBuf): Unit = {
-    logger.trace(s"Encoder for silo system messages received `$msg`")
+    logger.trace(s"Encoder for silo system messages received:\n$msg")
     out.writeBytes(pickle(msg))
   }
 
@@ -40,7 +40,7 @@ private[impl] class SystemMessageEncoder extends MessageToByteEncoder[silt.Messa
     pickler.pickle(msg, builder)
 
     val picklee = builder.result().value
-    logger.trace(s"Picklee:\n${picklee}")
+    logger.trace(s"Picklee:\n$picklee")
 
     picklee.getBytes
   }

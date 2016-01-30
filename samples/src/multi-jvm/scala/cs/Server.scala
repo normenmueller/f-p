@@ -2,6 +2,7 @@ package multijvm
 package cs 
 
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
+import scala.concurrent.duration._
 import ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{ Success, Failure }
@@ -26,11 +27,9 @@ object ExampleMultiJvmServer extends AnyRef with Logging {
   import logger._
 
   def main(args: Array[String]): Unit = 
-    /* Start a silo system in server mode.
-     */
-    SiloSystem(port = Some(8090)) onComplete {
-      case Success(sys) => info(s"Silo system in server mode up and running (${sys.name}).")
-      case Failure(err)  => error(s"Could not start silo system in server mode:\n ${err.getMessage}")
+    Await.ready(SiloSystem(port = Some(8090)), 10.seconds) onComplete {
+      case Success(sys) => info(s"Silo system `${sys.name}` and running.")
+      case Failure(err) => error(s"Could not start silo system in server mode:\n ${err.getMessage}")
     }
 
 }

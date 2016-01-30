@@ -8,6 +8,7 @@ import scala.collection._
 import scala.concurrent.{ ExecutionContext, Future, Promise }
 import ExecutionContext.Implicits.global
 //import scala.collection.mutable.ArrayBuffer
+import scala.util._
 
 import _root_.io.netty.channel.Channel
 import _root_.io.netty.buffer.ByteBuf
@@ -58,8 +59,17 @@ trait Transfer {
     }
   }
 
-  def post[M <: silt.Message: Pickler](via: Channel, message: M): Future[Channel] =
-    via.writeAndFlush(message)
+  def post[M <: silt.Message: Pickler](via: Channel, message: M): Future[Channel] = {
+    val promise = Promise[Channel]
+
+    val f = via.writeAndFlush(message)
+    f onComplete {
+      case Success(c) => promise.success(c)
+      case Failure(e) => promise.failure(e)
+    }
+
+    promise.future
+  }
 
   def send[R <: silt.Request: Pickler](via: Channel, request: R): Future[silt.Response] = {
     val promise = Promise[silt.Response]()

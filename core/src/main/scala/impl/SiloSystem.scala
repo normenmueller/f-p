@@ -1,8 +1,6 @@
 package silt
 package impl
 
-import java.util.concurrent.CountDownLatch
-
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ ExecutionContext, Future, Promise }
 import ExecutionContext.Implicits.{ global => executor }
@@ -14,14 +12,7 @@ import com.typesafe.scalalogging.{ StrictLogging => Logging }
 /** A Netty-based implementation of a silo system. */
 class SiloSystem extends AnyRef with silt.SiloSystem with silt.Internals with Transfer with Logging {
 
-  /* Synchronizer for this silo system.
-   *
-   * A silo system running in server mode keeps on running until the latch
-   * reaches the terminal state. That is, the gate is closed and no thread can
-   * pass. In the terminal state the gate opens, allowing all threads to pass,
-   * say, to terminate the silo system and the server, respectively.
-   */
-  protected val hook: Option[CountDownLatch] = None
+  import logger._
 
   // Members declared in silt.impl.Transfer
 
@@ -36,32 +27,23 @@ class SiloSystem extends AnyRef with silt.SiloSystem with silt.Internals with Tr
   override def terminate(): Future[Unit] = {
     val promise = Promise[Unit]
 
-    // Close connections TO other silo systems
-    logger.trace("Close connctions to other silo systems")
+    info(s"Silo system `$name` terminating...")
     val to = statusOf collect {
-      case (_, Connected(channel, wrkr)) =>
-        println("1"); post(channel, Disconnect) andThen {
-          case _ =>
-            println("2"); channel.closeFuture()
-        } andThen {
-          case _ =>
-            println("3"); wrkr.shutdownGracefully()
-        }
+      case (host, Connected(channel, worker)) =>
+        trace(s"Closing connection to `$host`.")
+        post(channel, Disconnect) map { _ => worker.shutdownGracefully() }
     }
 
     // Close connections FROM other silo systems
     // val from = XXX
-    println("4")
 
     // Terminate underlying server
-    // Future.sequence(to /*, from*/ ) onComplete {
-    //   case _ =>
-    //     println("5")
-    //     server map { _.stop() }
-    //     println("6")
-    //     hook map { _.countDown() }
-    //     promise success (())
-    // }
+    //format: OFF
+    Future.sequence(to /*, from*/ ) onComplete { case _ =>
+      promise success (this match { case server: Server => server.stop() case _ => () })
+      info(s"Silo system `$name` terminating done.")
+    }
+    //format: ON
 
     promise.future
   }
@@ -74,26 +56,11 @@ class SiloSystem extends AnyRef with silt.SiloSystem with silt.Internals with Tr
     connect(to) flatMap { via => send(via, request(id.next)) }
 
   override def withServer(host: Host): Future[silt.SiloSystem with Server] = {
-    /* Promise a silo system, and fulfill this promise with the completed
-     * startup of the underlying server. Cf. [[Server#run]].
-     */
     val promise = Promise[silt.SiloSystem with Server]
     executor execute (new SiloSystem with Server {
-
-      // silt.SiloSytem w/ internals
       override val name = host.toString
-
-      // silt.Server
       override val at = host
-
-      // silt.impl.SiloSystem
-      override val hook = Some(new CountDownLatch(1))
-
-      // silt.impl.Server
       override val started = promise
-
-      (new Thread { override def run(): Unit = hook map (_.await()) }).start()
-
     })
     promise.future
   }

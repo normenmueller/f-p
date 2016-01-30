@@ -25,17 +25,13 @@ object SiloSystemServerMode extends AnyRef with App with Logging {
 object SiloSystemClientMode extends AnyRef with App with Logging {
 
   /* Run silo system in client-mode.
-   *
    */
-  //SiloSystem() match {
-  // case Success(system) =>
-  //   // create initial silo, i.e., upload initial data
-  //   // define and execute your workflow
-  //   // close all open connections and terminate silo system
-  //   system.terminate()
-  // case Failure(error) =>
-  //   logger.error(s"Could not instantiate silo system at `localhost`:\n ${error.getMessage}")
-  //}
+  val system = Await.result(SiloSystem(), 10.seconds)
+
+  logger.info(s"Silo system `${system.name}` up and running.")
+  logger.info(s"Initiating termination of silo system `${system.name}`...")
+  Await.result(system.terminate(), 10.seconds)
+  logger.info(s"Silo system `${system.name}` terminated.")
 
 }
 
@@ -47,9 +43,9 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
    * - clients may send the message [[Terminate]], or
    * - the silo system must [[terminate SiloSystem#terminate]] itself.
    */
-  SiloSystem(port = Some(8091)) onComplete {
+  Await.ready(SiloSystem(port = Some(8091)), 10.seconds) onComplete {
     case Success(system) =>
-      logger.info(s"Silo system in server mode up and running at `${system.name}`.")
+      logger.info(s"Silo system `${system.name}` up and running at.")
 
       /* Here it is demonstrated what running a silo system in dual mode
        * means. Despite serving silos, this silo system also defines and
@@ -60,7 +56,7 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
        * [[https://github.com/normenmueller/f-p/wiki/Understanding-silo-systems]]
        */
       logger.debug(">>> workflow definition and execution")
-      for (i <- 1 to 10) {
+      for (i <- 1 to 100) {
         logger.debug(f"... working ... ($i%04d)")
         Thread.sleep(100)
 
@@ -73,12 +69,11 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
 
       // JVM does not terminate if the following call is commented out
       try {
-        val result = Await.result(system.terminate(), 2.seconds)
-        logger.debug(result.message)
-      } catch {
-        case err: Throwable => 
-          println(err.getMessage())
-          sys.exit(1)
+        Await.result(system.terminate(), 2.seconds)
+        logger.info(s"Silo system `${system.name}` terminated.")
+      } catch { case err: Throwable => 
+        println(err.getMessage())
+        sys.exit(1)
       }
 
     case Failure(error) => logger.error(s"Could not start silo system in server mode:\n ${error.getMessage}")

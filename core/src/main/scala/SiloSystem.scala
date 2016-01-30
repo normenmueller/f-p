@@ -36,16 +36,16 @@ object SiloSystem extends AnyRef with Logging {
     *
     * @param port network port
     */
+  //format: OFF
   def apply(port: Option[Int] = None): Future[SiloSystem] = Future {
     val clazz = sys.props.getOrElse("silo.system.impl", "silt.impl.SiloSystem")
     logger.info(s"Initializing silo system with `$clazz`")
     Class.forName(clazz).newInstance().asInstanceOf[silt.SiloSystem with silt.Internals]
-  } flatMap { system =>
-    port match {
-      case None       => Future.successful(system)
-      case Some(port) => system withServer Host("127.0.0.1", port)
-    }
-  }
+  } flatMap { system => port match {
+    case None       => Future.successful(system)
+    case Some(port) => system withServer Host("127.0.0.1", port)
+  } }
+  //format: ON
 
 }
 
@@ -69,8 +69,7 @@ trait SiloSystem extends SiloRefFactory with Logging /* XXX TESTING */ with silt
     */
   def name: String
 
-  /** Terminate the silo system.
-    */
+  /** Terminate the silo system. */
   def terminate(): Future[Unit]
 
   // Members declared in silt.SiloRefFactory
@@ -93,14 +92,12 @@ trait SiloSystem extends SiloRefFactory with Logging /* XXX TESTING */ with silt
  */
 private[silt] trait Internals {
 
-  /** Return an implementation agnostic silo system running in server mode.
-    *
-    * @param at [[Host network host]]
-    */
+  /* Return an implementation agnostic silo system running in server mode.
+   * @param at [[Host network host]]
+   */
   def withServer(at: Host): Future[silt.SiloSystem with Server]
 
-  /* System message processor.
-   */
+  /* System message processor. */
   //def processor: Processor
 
   def initiate[R <: silt.Request: Pickler](to: Host)(request: Id => R): Future[silt.Response]
