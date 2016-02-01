@@ -14,11 +14,8 @@ import silt.SiloSystem
 object SiloSystemServerMode extends AnyRef with App with Logging {
 
   /* Run silo system in server mode.
-   *
-   * In order to shutdown a silo system running in server mode, clients must
-   * send the string "shutdown".
    */
-  SiloSystem(port = Some(8091))
+  Await.result(SiloSystem(port = Some(8091)), 10.seconds)
 
 }
 

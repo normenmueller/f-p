@@ -1,10 +1,9 @@
 package silt
 package impl
-package netty
 
 import java.util.concurrent.BlockingQueue
 
-import io.netty.channel.{ ChannelFutureListener, ChannelHandlerContext }
+import io.netty.channel.{ ChannelFutureListener, ChannelHandler, ChannelHandlerContext }
 import io.netty.channel.SimpleChannelInboundHandler
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
@@ -18,13 +17,12 @@ import com.typesafe.scalalogging.{ StrictLogging => Logging }
  * [[io.netty.util.ReferenceCountUtil#release(Object)]].
  */
 // private[netty] class Forwarder(receptor: Receptor) extends ChannelInboundHandlerAdapter with Logging {
-private[netty] class Forwarder(processor: Processor) extends SimpleChannelInboundHandler[silt.Message] with Logging {
+@ChannelHandler.Sharable
+private[impl] class Forwarder( /*processor: Processor*/ ) extends SimpleChannelInboundHandler[silt.Message] with Logging {
 
-  override def channelActive(ctx: ChannelHandlerContext): Unit = {
-    logger.debug("Server inbound handler entered status `channelActive`.")
-  }
+  import logger._
 
-  /* XXX Obsolete; Valid for ChannelInboundHandlerAdapter
+  /* XXX Documentation is obsolete: Valid for ChannelInboundHandlerAdapter
    *
    * Forward incoming messages to internal [[mq]] queue.
    *
@@ -39,21 +37,28 @@ private[netty] class Forwarder(processor: Processor) extends SimpleChannelInboun
    */
   //override def channelRead(ctx: ChannelHandlerContext, msg: silt.Message): Unit = {
   override def channelRead0(ctx: ChannelHandlerContext, msg: silt.Message): Unit = {
-    logger.debug("Server inbound handler entered status `channelRead`.")
-    processor process msg
+    trace(s"Forwarder received message: $msg")
+    // XXX processor process msg
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
-    cause.printStackTrace()
+    import ChannelFutureListener._
+
+    //cause.printStackTrace()
 
     // Don't just close the connection when an exception is raised.
     //ctx.close()
 
-    if (ctx.channel().isActive())
-      ctx.writeAndFlush("ERR: " +
-        cause.getClass().getSimpleName() + ": " +
-        cause.getMessage() + '\n'
-      ).addListener(ChannelFutureListener.CLOSE)
+    val msg = s"${cause.getClass().getSimpleName()}: ${cause.getMessage()}"
+    logger.error(msg)
+
+    // XXX With the current setup of the channel pipeline, in order to respond
+    // with a raw text message --- recall only a silo sytem can create system
+    // messages due to `Id` --- additional encoder/ decoder are required.
+    //if (ctx.channel().isActive())
+    //  ctx.writeAndFlush(msg).addListener(CLOSE)
+    //else ()
+
   }
 
 }

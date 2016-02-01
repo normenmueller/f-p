@@ -28,11 +28,14 @@ class SiloSystem extends AnyRef with silt.SiloSystem with silt.Internals with Tr
     val promise = Promise[Unit]
 
     info(s"Silo system `$name` terminating...")
-    val to = statusOf collect {
-      case (host, Connected(channel, worker)) =>
-        trace(s"Closing connection to `$host`.")
-        post(channel, Disconnect) map { _ => worker.shutdownGracefully() }
+    //format: OFF
+    val to = statusOf collect { case (host, Connected(channel, worker)) =>
+      trace(s"Closing connection to `$host`.")
+      post(channel, Disconnect)
+        .andThen { case _ => worker.shutdownGracefully() }
+        .andThen { case _ => statusOf += (host -> Disconnected) }
     }
+    //format: ON
 
     // Close connections FROM other silo systems
     // val from = XXX

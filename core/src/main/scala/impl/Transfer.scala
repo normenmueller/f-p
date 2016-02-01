@@ -17,7 +17,6 @@ import _root_.io.netty.channel.{ ChannelInitializer, ChannelOption }
 import _root_.io.netty.channel.nio.NioEventLoopGroup
 import _root_.io.netty.channel.socket.SocketChannel
 import _root_.io.netty.channel.socket.nio.NioSocketChannel
-import _root_.io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
 trait Transfer {
 
@@ -40,22 +39,23 @@ trait Transfer {
   def channel(to: Host): Future[Connected] = {
     val wrkr = new NioEventLoopGroup
     try {
-      (new Bootstrap).group(wrkr).channel(classOf[NioSocketChannel])
-        .handler(new ChannelInitializer[SocketChannel] {
-          override def initChannel(ch: SocketChannel): Unit =
-            ch.pipeline().addLast(
-              //new Logger(LogLevel.INFO),
-              new SystemMessageEncoder(),
-              new SystemMessageDecoder()
-            // XXX new ClientHandler { def systemImpl = self }
-            )
-        })
-        .option(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
-        .connect(to.address, to.port).map(Connected(_, wrkr))
-    } catch {
-      case t: Throwable =>
-        wrkr.shutdownGracefully()
-        throw t
+      val b = new Bootstrap
+      b.group(wrkr)
+       .channel(classOf[NioSocketChannel])
+       .handler(new ChannelInitializer[SocketChannel] {
+         override def initChannel(ch: SocketChannel): Unit = {
+           val pipeline = ch.pipeline()
+           pipeline.addLast(LOGGER)
+           pipeline.addLast(ENCODER)
+           pipeline.addLast(decoder)
+           // XXX new ClientHandler { def systemImpl = self }
+         }
+       })
+       .option(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
+       .connect(to.address, to.port).map(Connected(_, wrkr))
+    } catch { case t: Throwable =>
+      wrkr.shutdownGracefully()
+      throw t
     }
   }
 

@@ -90,6 +90,23 @@ communication all for free, all in a friendly collections/futures-like package!
         logger.error(s"Silo system terminated with error `${error.getMessage}`.")
       }
     }
+    // -----------
+    Thread.sleep(5000)
+    println("------------------------------------------------------------------------------------------------------------------")
+    info(s"Silo system `${system.name}` connecting to `$target`...")
+    system.connect(target) map { channel =>
+      info(s"Silo system `${system.name}` connecting to `$target` done.")
+      Thread.sleep(1000)
+
+      info(s"Initiating termination of silo system `${system.name}`...")
+      try {
+        Await.result(system.terminate(), 10.seconds)
+        info(s"Silo system `${system.name}` terminated.")
+      } catch { case error: Throwable =>
+        logger.error(s"Silo system terminated with error `${error.getMessage}`.")
+      }
+    }
+    Thread.sleep(5000)
   }
  
 }

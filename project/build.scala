@@ -40,10 +40,15 @@ object build extends Build with Formatting with Mappings {
           //"org.scala-lang.modules"     %% "spores-core"     % "0.1.3",
           //"org.scala-lang.modules"     %% "spores-pickling" % "0.1.3",
           "org.scala-lang.modules"     %% "scala-pickling"  % "0.10.1", 
+
           //"com.typesafe.akka"           % "akka-actor_2.11" % "2.3.12",
+          
           "io.netty"                    % "netty-all"       % "4.0.33.Final",
+          "org.javassist"               % "javassist"       % "3.20.0-GA",
+
           "com.typesafe.scala-logging" %% "scala-logging"   % "3.1.0",
           "ch.qos.logback"              % "logback-classic" % "1.1.3",
+
           //"junit"                       % "junit-dep"       % "4.11"  % "test",
           //"com.novocode"                % "junit-interface" % "0.11"  % "test",
           "org.scalatest"              %% "scalatest"       % "2.2.4" % "test"

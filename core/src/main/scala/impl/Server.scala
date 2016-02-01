@@ -5,13 +5,13 @@ import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
 
 import scala.concurrent.{ ExecutionContext, Promise }
 import ExecutionContext.Implicits.{ global => executor }
+import scala.util.{ Success, Failure }
 
 import io.netty.bootstrap.ServerBootstrap
-import io.netty.channel.ChannelInitializer
+import io.netty.channel.{ ChannelInitializer, ChannelOption }
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
@@ -32,12 +32,6 @@ trait Server extends AnyRef with silt.Server with Runnable with Logging {
   private val boss = new NioEventLoopGroup
   private val worker = new NioEventLoopGroup
 
-  // XXX new LengthFieldBasedFrameDecoder ?
-  // XXX new ChunkedWriteHandler() ?
-  private val encoder = new SystemMessageEncoder()
-  private val decoder = new SystemMessageDecoder()
-  // XXX private val forwarder = new Forwarder(processor)
-
   private val latch: CountDownLatch = new CountDownLatch(1)
 
   // Worker for all incoming messages from all channels.
@@ -50,15 +44,15 @@ trait Server extends AnyRef with silt.Server with Runnable with Logging {
     .childHandler(new ChannelInitializer[SocketChannel]() {
       override def initChannel(ch: SocketChannel): Unit = {
         val pipeline = ch.pipeline()
-        pipeline.addLast("Logger", new Logger(LogLevel.TRACE))
-        pipeline.addLast("Encoder", encoder)
-        pipeline.addLast("Decoder", decoder)
-        // XXX pipeline.addLast("Server|Forwarder", forwarder)
+        pipeline.addLast(LOGGER)
+        pipeline.addLast(ENCODER)
+        pipeline.addLast(decoder)
+        pipeline.addLast(FORWARDER)
       }
     })
-  // XXX are those options necessary?
-  //.option(ChannelOption.SO_BACKLOG.asInstanceOf[ChannelOption[Any]], 128) 
-  //.childOption(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
+    // XXX are those options necessary?
+    //.option(ChannelOption.SO_BACKLOG.asInstanceOf[ChannelOption[Any]], 128) 
+    //.childOption(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
   trace("Server initializing done.")
 
   // Members declared in silt.Server
@@ -67,18 +61,19 @@ trait Server extends AnyRef with silt.Server with Runnable with Logging {
     *
     * Start and bind server to accept incoming connections at port `at.port`.
     */
-  override def start(): Unit = {
-    trace("Server start...")
+  override def start(): Unit =
+    try {
+      trace("Server start...")
 
-    // XXX receptor.start()
-    server.bind(at.port).sync()
-    started success self
+      // XXX receptor.start()
+      server.bind(at.port).sync()
+      started success self
 
-    trace("Server start done.")
-    info(s"Server listining at port ${at.port}.")
+      trace("Server start done.")
+      info(s"Server listining at port ${at.port}.")
 
-    (new Thread { override def run(): Unit = latch.await() }).start()
-  }
+      (new Thread { override def run(): Unit = latch.await() }).start()
+    } catch { case e: Throwable => started failure e }
 
   /** Stop server.
     *

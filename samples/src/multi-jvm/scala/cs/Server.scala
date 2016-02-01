@@ -29,7 +29,7 @@ object ExampleMultiJvmServer extends AnyRef with Logging {
   def main(args: Array[String]): Unit = 
     Await.ready(SiloSystem(port = Some(8090)), 10.seconds) onComplete {
       case Success(sys) => info(s"Silo system `${sys.name}` and running.")
-      case Failure(err) => error(s"Could not start silo system in server mode:\n ${err.getMessage}")
+      case Failure(err) => error(s"Could not start silo system in server mode: ${err.getMessage}")
     }
 
 }

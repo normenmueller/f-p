@@ -26,7 +26,7 @@ object SiloSystem extends AnyRef with Logging {
     * In case of none port is given, the silo system runs in client mode.
     *
     * The actual silo system implementation must be a subclass of
-    * [[silt.impl.Requirements]] with a default, empty constructor. The concrete
+    * [[silt.SiloSystem]] with a default, empty constructor. The concrete
     * realization is specified by the system property
     * `-Dsilo.system.impl=<class>`. If no system property is given, the
     * realization defaults to [[silt.impl.SiloSystem]].
