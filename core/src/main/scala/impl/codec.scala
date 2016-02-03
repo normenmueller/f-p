@@ -1,8 +1,11 @@
 package silt
 package impl
 
+import java.io.ByteArrayOutputStream
+
 import scala.pickling._
 import scala.pickling.Defaults._
+import binary._
 
 import _root_.io.netty.buffer.ByteBuf
 import _root_.io.netty.channel.{ ChannelFutureListener, ChannelHandler, ChannelHandlerContext }
@@ -11,10 +14,11 @@ import _root_.io.netty.handler.codec.{ ByteToMessageDecoder, MessageToByteEncode
 
 import _root_.com.typesafe.scalalogging.{ StrictLogging => Logging }
 
-import binary._
-//import json._
-
 /** Encoder converts F-P system messages to a format suitable for transmission.
+  *
+  * Note: Once a message has been encoded, it will be ''automatically'' released
+  * by the Netty codec framework.  Cf.
+  * [[io.netty.handler.codec.MessageToByteEncode#write]] 
   */
 @ChannelHandler.Sharable
 private[impl] class SystemMessageEncoder extends MessageToByteEncoder[silt.Message] with Logging {
@@ -26,9 +30,6 @@ private[impl] class SystemMessageEncoder extends MessageToByteEncoder[silt.Messa
    * [[_root_.io.netty.buffer.ByteBuf]] is then forwarded to the next
    * [[_root_.io.netty.channel.ChannelOutboundHandler]] in the pipeline.
    *
-   * Note: Once a message has been encoded, it will ''automatically'' be
-   * released by a call to [[io.netty.handler.codec.MessageToByteEncode#write
-   * ReferenceCountUtil.release(msg)]] 
    */
   override def encode(ctx: ChannelHandlerContext, msg: silt.Message, out: ByteBuf): Unit = {
     trace(s"Encoder received message: $msg")
@@ -58,15 +59,18 @@ private[impl] class SystemMessageEncoder extends MessageToByteEncoder[silt.Messa
 
 }
 
-import java.util.{ List => JList }
-
 /** Decoder converts a network stream, encoded by [[SystemMessageEncoder]] back
   * to the F-P system message format.
   *
-  * Note: [[io.netty.handler.codec.ByteToMessageDecoder MUST NOT]] annotated with @Sharable.
+  * Note: [[io.netty.handler.codec.ByteToMessageDecoder MUST NOT]] be annotated
+  * with @Sharable.
+  *
+  * Note: Once a message has been decoded, it will be ''automatically'' released
+  * by this decoder ([[io.netty.handler.codec.ByteToMessageDecoder Pitfalls]]).
   */
 private[impl] class SystemMessageDecoder extends ByteToMessageDecoder with Logging {
 
+  import java.util.{ List => JList }
   import logger._
 
   /* Called with a [[ByteBuf]] containing incoming data and a List to which
@@ -74,25 +78,24 @@ private[impl] class SystemMessageDecoder extends ByteToMessageDecoder with Loggi
    * that no new items have been added to the List or no more bytes are readable
    * in the ByteBuf. Then, if the List is not empty, its contents are passed to
    * the next handler in the pipeline.
-   *
-   * XXX Note: Once a message has been decoded, it will ''automatically'' be
-   * released by a call to ReferenceCountUtil.release(message)
    */
-  override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: JList[Object]): Unit = try {
-    val buf: ByteBuf = in.readBytes(in.readableBytes())
-    val arr: Array[Byte] = buf.array()
+  override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: JList[Object]): Unit = 
+    try {
+      val buf: ByteBuf = in.readBytes(in.readableBytes())
+      val arr: Array[Byte] = if (buf.hasArray()) buf.array() else {
+        val bos = new ByteArrayOutputStream
+        while (buf.isReadable()) bos.write(buf.readByte())
+        bos.toByteArray()
+      }
 
-    if (!arr.isEmpty) {
-      val pickle = BinaryPickle(arr)
+      if (!arr.isEmpty) {
+        val msg = BinaryPickle(arr).unpickle[silt.Message]
+        trace(s"Decoder received message: $msg")
+        out add msg
+      } else () // nop
 
-      val msg = pickle.unpickle[silt.Response]
-      //val msg = pickle.unpickle[Any]
-      trace(s"Decoder received message: $msg")
-
-      out add msg
-    } else ()
-
-  } catch { case e: Throwable => throw e }
+      buf.release()
+    } catch { case e: Throwable => throw e }
 
 }
 
