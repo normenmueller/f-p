@@ -80,3 +80,5 @@ object build extends Build with Formatting with Mappings {
   ) dependsOn(core) configs(MultiJvm) 
 
 }
+
+// vim: set tw=80 ft=scala:

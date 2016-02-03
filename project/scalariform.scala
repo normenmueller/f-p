@@ -30,3 +30,5 @@ trait Formatting {
   )
 
 }
+
+// vim: set tw=80 ft=scala:
