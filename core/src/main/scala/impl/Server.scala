@@ -37,7 +37,11 @@ trait Server extends AnyRef with silt.Server with Runnable with Logging {
   // Worker for all incoming messages from all channels.
   //private val receptor = new Receptor(self, new LinkedBlockingQueue[Incoming]())
 
-  /* Initialize a [[Netty-based http://goo.gl/0Z9pZM]] server. */
+  /* Initialize a [[Netty-based http://goo.gl/0Z9pZM]] server.
+   *
+   * Note: [[NioEventLoopGroup]] is supposed to be used only for non-blocking
+   * actions. 
+   */
   trace("Server initializing...")
   server.group(boss, worker)
     .channel(classOf[NioServerSocketChannel])

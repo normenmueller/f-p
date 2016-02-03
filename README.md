@@ -14,21 +14,13 @@ Examples and tests can be launched from the sbt prompt:
 
 ```
 > project samples
-> [info] Set current project to f-p samples (in build file:/.../f-p/)
-> run
-> [warn] Multiple main classes detected.  Run 'show discoveredMainClasses' to see the list
->
-> Multiple main classes detected, select one to run:
->
->  [1] samples.datastructure.Demo
->  [2] samples.getstarted.Client
->  [3] samples.getstarted.Server
->
-> Enter number:
->
-> project core
-> multi-jvm:run netty.Basic
-> multi-jvm:run netty.WordCount
+[info] Set current project to f-p samples (in build file:/Users/nrm/Sources/f-p/)
+> multi-jvm:run multijvm.cs.Example
 ```
 
-Note, `samples.getstarted.Client` and `samples.getstarted.Server` must be run in different `sbt` sessions, e.g., in two different Terminals. 
+## Implementation agnostic
+
+The default `F-P` realization is backed by [Netty](http://netty.io Netty). In order to
+demonstrate our implementation agnostic approach, you can find at
+`samples/single-jvm/main/scala/actor` an [Akka](http://akka.io Akka)-based,
+alternative realization.

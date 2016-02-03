@@ -13,8 +13,7 @@ import com.typesafe.scalalogging.{ StrictLogging => Logging }
  *
  * Be aware that due to the default constructor parameter of
  * [[io.netty.channel.SimpleChannelInboundHandler]] all messages will be
- * released by passing them to
- * [[io.netty.util.ReferenceCountUtil#release(Object)]].
+ * released by passing them to [[io.netty.util.ReferenceCountUtil#release(Object)]].
  */
 // private[netty] class Forwarder(receptor: Receptor) extends ChannelInboundHandlerAdapter with Logging {
 @ChannelHandler.Sharable
