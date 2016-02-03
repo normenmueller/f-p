@@ -1,22 +1,44 @@
 package silt
 package graph
 
-import scala.language.existentials
-import scala.reflect.runtime
+//import scala.language.existentials
+//import scala.concurrent.util.Unsafe
+//import scala.reflect.runtime
 
 import scala.pickling._
 import Defaults._
 import shareNothing._
 import binary._
 
-import scala.spores.{ Spore, Spore2 }
-
-import scala.concurrent.util.Unsafe
+//import scala.spores.{ Spore, Spore2 }
 
 object Picklers {
 
-  implicit def doPumpToPickler[A, B, P]: Pickler[DoPumpTo[A, B, P]] with Unpickler[DoPumpTo[A, B, P]] =
-    new Pickler[DoPumpTo[A, B, P]] with Unpickler[DoPumpTo[A, B, P]] {
+  implicit object NodePU extends Pickler[Node] with Unpickler[Node] {
+
+    def tag: FastTypeTag[Node] = implicitly[FastTypeTag[Node]]
+
+    def pickle(picklee: Node, builder: PBuilder): Unit = picklee match {
+      case m: Materialized      => implicitly[Pickler[Materialized]].pickle(m, builder)
+      // XXX case a: Apply[u, t, v, s] => applyPU[u, t, v, s].pickle(a, builder)
+      // XXX case mi: MultiInput[r]    => multiInputPU[r].pickle(mi, builder)
+    }
+
+    def unpickle(tag: String, reader: PReader): Any = {
+      println(s"NodePU.unpickle, tag: $tag")
+      if (tag.startsWith("silt.graph.MultiInput")) {
+        // XXX multiInputPU[Any].unpickle(tag, reader)
+      } else if (tag.startsWith("silt.graph.Materialized")) {
+        implicitly[Unpickler[Materialized]].unpickle(tag, reader)
+      } else { // no other cases possible because of `sealed`
+        // XXX applyPU[Any, Traversable[Any], Any, Traversable[Any]].unpickle(tag, reader)
+      }
+    }
+
+  }
+
+/*
+  implicit def doPumpToPickler[A, B, P]: Pickler[DoPumpTo[A, B, P]] with Unpickler[DoPumpTo[A, B, P]] = new Pickler[DoPumpTo[A, B, P]] with Unpickler[DoPumpTo[A, B, P]] {
 
       def tag: FastTypeTag[DoPumpTo[A, B, P]] = implicitly[FastTypeTag[DoPumpTo[A, B, P]]]
 
@@ -205,31 +227,7 @@ object Picklers {
 
   }
 
-  implicit object NodePU extends Pickler[Node] with Unpickler[Node] {
-
-    def tag: FastTypeTag[Node] = implicitly[FastTypeTag[Node]]
-
-    def pickle(picklee: Node, builder: PBuilder): Unit = picklee match {
-      case m: Materialized      => implicitly[Pickler[Materialized]].pickle(m, builder)
-      case a: Apply[u, t, v, s] => applyPU[u, t, v, s].pickle(a, builder)
-      case mi: MultiInput[r]    => multiInputPU[r].pickle(mi, builder)
-    }
-
-    def unpickle(tag: String, reader: PReader): Any = {
-      println(s"NodePU.unpickle, tag: $tag")
-      if (tag.startsWith("silt.graph.MultiInput")) {
-        multiInputPU[Any].unpickle(tag, reader)
-      } else if (tag.startsWith("silt.graph.Materialized")) {
-        implicitly[Unpickler[Materialized]].unpickle(tag, reader)
-      } else { // no other cases possible because of `sealed`
-        applyPU[Any, Traversable[Any], Any, Traversable[Any]].unpickle(tag, reader)
-      }
-    }
-
-  }
-
-  implicit def multiInputPU[R]: Pickler[MultiInput[R]] with Unpickler[MultiInput[R]] =
-    new Pickler[MultiInput[R]] with Unpickler[MultiInput[R]] {
+  implicit def multiInputPU[R]: Pickler[MultiInput[R]] with Unpickler[MultiInput[R]] = new Pickler[MultiInput[R]] with Unpickler[MultiInput[R]] {
 
       def tag: FastTypeTag[MultiInput[R]] = implicitly[FastTypeTag[MultiInput[R]]]
 
@@ -298,8 +296,7 @@ object Picklers {
 
     }
 
-  implicit def pumpNodeInputPU[U, V, R, P]: Pickler[PumpNodeInput[U, V, R, P]] with Unpickler[PumpNodeInput[U, V, R, P]] =
-    new Pickler[PumpNodeInput[U, V, R, P]] with Unpickler[PumpNodeInput[U, V, R, P]] {
+  implicit def pumpNodeInputPU[U, V, R, P]: Pickler[PumpNodeInput[U, V, R, P]] with Unpickler[PumpNodeInput[U, V, R, P]] = new Pickler[PumpNodeInput[U, V, R, P]] with Unpickler[PumpNodeInput[U, V, R, P]] {
 
       def tag: FastTypeTag[PumpNodeInput[U, V, R, P]] = implicitly[FastTypeTag[PumpNodeInput[U, V, R, P]]]
 
@@ -405,8 +402,7 @@ object Picklers {
 
     }
 
-  implicit def applyPU[U, T <: Traversable[U], V, S <: Traversable[V]]: Pickler[Apply[U, T, V, S]] with Unpickler[Apply[U, T, V, S]] =
-    new Pickler[Apply[U, T, V, S]] with Unpickler[Apply[U, T, V, S]] {
+  implicit def applyPU[U, T <: Traversable[U], V, S <: Traversable[V]]: Pickler[Apply[U, T, V, S]] with Unpickler[Apply[U, T, V, S]] = new Pickler[Apply[U, T, V, S]] with Unpickler[Apply[U, T, V, S]] {
 
     def tag: FastTypeTag[Apply[U, T, V, S]] = implicitly[FastTypeTag[Apply[U, T, V, S]]]
 
@@ -508,6 +504,7 @@ object Picklers {
     }
 
   }
+*/
 
 }
 

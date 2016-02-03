@@ -2,16 +2,12 @@ package silt
 
 import scala.concurrent.Future
 
-/**
-  */
 trait SiloFactory[T] {
 
   def data: T
 
 }
 
-/**
-  */
 class Silo[T](private[silt] val data: T) {
 
   //def internalApply[A, V, B <: Traversable[V]](fun: A => B): LocalSilo[V, B] = {
@@ -39,4 +35,4 @@ class Silo[T](private[silt] val data: T) {
 
 }
 
-// vim: set tw=80 ft=scala:
+// vim: set tw=120 ft=scala:

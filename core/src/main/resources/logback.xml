@@ -4,12 +4,15 @@
     
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
-      <pattern>%coloredLevel %-30logger{30} - %message%n%xException{5}</pattern>
+      <pattern>%coloredLevel %-35logger{35} - %message%n%xException{5}</pattern>
     </encoder>
   </appender>
   
-  <logger name="io.netty" level="TRACE" />
-  <logger name="silt"     level="TRACE" />
+  <logger name="io.netty"                          level="TRACE" />
+  <logger name="io.netty.buffer"                   level="OFF" />
+  <logger name="io.netty.channel.nio.NioEventLoop" level="DEBUG" />
+  <logger name="io.netty.util"                     level="OFF" />
+  <logger name="silt"                              level="TRACE" />
   
   <root level="DEBUG">
     <appender-ref ref="STDOUT" />

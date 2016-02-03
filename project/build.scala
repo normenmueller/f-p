@@ -4,7 +4,7 @@ import Keys._
 import com.typesafe.sbt.SbtMultiJvm
 import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys.MultiJvm
 
-object build extends Build with Formatting with Mappings {
+object build extends Build with Mappings {
 
   lazy val standardSettings = Seq(
     scalaVersion := "2.11.7",
@@ -33,7 +33,7 @@ object build extends Build with Formatting with Mappings {
     base = file("core"),
     settings = standardSettings ++ 
       documentationSettings ++ 
-      formatSettings ++ 
+      //formatSettings ++ 
       Seq(
         name := "f-p core",
         libraryDependencies ++= Seq(
@@ -43,7 +43,8 @@ object build extends Build with Formatting with Mappings {
 
           //"com.typesafe.akka"           % "akka-actor_2.11" % "2.3.12",
           
-          "io.netty"                    % "netty-all"       % "4.0.33.Final",
+          //"io.netty"                    % "netty-all"       % "4.0.33.Final",
+          "io.netty"                    % "netty-all"       % "4.1.0.CR1",
           "org.javassist"               % "javassist"       % "3.20.0-GA",
 
           "com.typesafe.scala-logging" %% "scala-logging"   % "3.1.0",
@@ -61,7 +62,7 @@ object build extends Build with Formatting with Mappings {
     base = file("samples"),
     settings = standardSettings ++ 
       documentationSettings ++ 
-      formatSettings ++ 
+      //formatSettings ++ 
       SbtMultiJvm.multiJvmSettings ++ 
       Seq(
         name := "f-p samples",

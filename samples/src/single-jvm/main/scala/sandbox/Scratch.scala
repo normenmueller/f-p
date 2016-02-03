@@ -53,7 +53,7 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
        * [[https://github.com/normenmueller/f-p/wiki/Understanding-silo-systems]]
        */
       logger.debug(">>> workflow definition and execution")
-      for (i <- 1 to 100) {
+      for (i <- 1 to 50) {
         logger.debug(f"... working ... ($i%04d)")
         Thread.sleep(100)
 

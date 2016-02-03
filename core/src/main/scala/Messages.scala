@@ -2,20 +2,24 @@ package silt
 
 sealed trait Identifiable {
 
-  val id: Id
+  val id: MsgId
 
 }
 
+// F-P internal system messages
+
 sealed abstract class Message
 
-sealed abstract class Request extends Message with Identifiable
+sealed abstract class Request extends Message
+case object Disconnect extends Request
+case object Terminate  extends Request
+
+sealed abstract class RSVP extends Request with Identifiable
+case class Populate[T](id: MsgId, fac: () => Silo[T]) extends RSVP 
+case class Traverse(id: MsgId, node: graph.Node) extends RSVP
 
 sealed abstract class Response extends Message with Identifiable
+case class Populated(id: MsgId, ref: RefId) extends Response
+case class Traversed(id: MsgId, data: Any) extends Response
 
-case class Populate[T](id: Id, fac: SiloFactory[T]) extends Request
-case class Populated(id: Id, cor: Id) extends Response
-
-case object Disconnect extends Message
-case object Terminate extends Message
-
-// vim: set tw=80 ft=scala:
+// vim: set tw=120 ft=scala:

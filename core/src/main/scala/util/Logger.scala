@@ -49,4 +49,4 @@ private[util] object Colors {
 
 }
 
-// vim: set tw=80 ft=scala:
+// vim: set tw=120 ft=scala:

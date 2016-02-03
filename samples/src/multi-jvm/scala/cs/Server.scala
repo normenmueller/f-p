@@ -17,10 +17,10 @@ import silt._
   * All these terms have their raison d'être, i.e., all these terms, in general,
   * state the fact that this node is for hosting silos and thus for executing
   * computations defined and shipped by some other node --- here, in this
-  * example, that other node is `Node2`.
+  * example, that other node is [[ExampleMultiJvmClient]].
   * 
   * To allow for creation of silos by other nodes, the F-P runtime requires a
-  * web server. Current default is a netty-based web server. 
+  * web server. Current default is a Netty-based web server. 
   */
 object ExampleMultiJvmServer extends AnyRef with Logging {
 
@@ -28,7 +28,7 @@ object ExampleMultiJvmServer extends AnyRef with Logging {
 
   def main(args: Array[String]): Unit = 
     Await.ready(SiloSystem(port = Some(8090)), 10.seconds) onComplete {
-      case Success(sys) => info(s"Silo system `${sys.name}` and running.")
+      case Success(sys) => info(s"Silo system `${sys.name}` up and running.")
       case Failure(err) => error(s"Could not start silo system in server mode: ${err.getMessage}")
     }
 
