@@ -9,29 +9,32 @@ trait Mappings {
 
   val externalJavadocMap = Map()
   
-  /* The rt.jar file is located in the path stored in the sun.boot.class.path system property.
-   * See the Oracle documentation at http://docs.oracle.com/javase/6/docs/technotes/tools/findingclasses.html.
-   */
-  val rtJar: String = System.getProperty("sun.boot.class.path").split(java.io.File.pathSeparator).collectFirst {
-    case str: String if str.endsWith(java.io.File.separator + "rt.jar") => str
-  }.get // fail hard if not found
+  /* The rt.jar file is located in the path stored in the sun.boot.class.path 
+   * system property. See the Oracle documentation at:
+   * http://docs.oracle.com/javase/6/docs/technotes/tools/findingclasses.html */
+  val rtJar: String = System.getProperty("sun.boot.class.path")
+    .split(java.io.File.pathSeparator).collectFirst {
+      case str: String if str.endsWith(java.io.File.separator + "rt.jar") => str
+    }.get // fail hard if not found
   
   val javaApiUrl: String = "http://docs.oracle.com/javase/8/docs/api/index.html"
   
-  val allExternalJavadocLinks: Seq[String] = javaApiUrl +: externalJavadocMap.values.toSeq
+  val allExternalJavadocLinks: Seq[String] = 
+    javaApiUrl +: externalJavadocMap.values.toSeq
   
-  def javadocLinkRegex(javadocURL: String): Regex = ("""\"(\Q""" + javadocURL + """\E)#([^"]*)\"""").r
+  def javadocLinkRegex(javadocURL: String): Regex = 
+    ("""\"(\Q""" + javadocURL + """\E)#([^"]*)\"""").r
   
-  def hasJavadocLink(f: File): Boolean = allExternalJavadocLinks exists { javadocURL: String => 
-      (javadocLinkRegex(javadocURL) findFirstIn IO.read(f)).nonEmpty
-  }
+  def hasJavadocLink(f: File): Boolean = 
+    allExternalJavadocLinks exists { javadocURL: String => 
+        (javadocLinkRegex(javadocURL) findFirstIn IO.read(f)).nonEmpty
+    }
   
   val fixJavaLinks: Match => String = m =>
     m.group(1) + "?" + m.group(2).replace(".", "/") + ".html"
   
-  /* You can print the classpath with `show compile:fullClasspath` in the SBT REPL.
-   * From that list you can find the name of the jar for the managed dependency.
-   */
+  /* Print the classpath with `show compile:fullClasspath`in the SBT REPL.
+   * In that list you'll find the name of the jar for the managed dependency. */
   lazy val documentationSettings = Seq(
     apiMappings ++= {
       // Lookup the path to jar from the classpath
@@ -62,4 +65,3 @@ trait Mappings {
 
 }
 
-// vim: set tw=80 ft=scala:

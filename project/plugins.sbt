@@ -1,15 +1,10 @@
-// https://github.com/sbt/sbt-multi-jvm
+// Allow support for running code (like tests) in different JVMs
 addSbtPlugin("com.typesafe.sbt" % "sbt-multi-jvm" % "0.3.11")
 
-// https://github.com/daniel-trinh/sbt-scalariform 
-//addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.6.0")
+// Add scalariform separately
+resolvers += "Sonatype OSS Releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
 
-// Compiled from `https://github.com/normenmueller/sbt-scalariform`
-// and published locally. Why? cf.
-// [[https://github.com/daniel-trinh/sbt-scalariform/issues/15]]
-addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.6.1")
+addSbtPlugin("org.scalariform" % "sbt-scalariform" % "1.6.0")
 
-// Eclipse integration
-// Required to mix in trait `Eclipse` located at `eclipse.scala`.
-// Currently disabled by default.
-//addSbtPlugin("com.typesafe.sbteclipse" % "sbteclipse-plugin" % "4.0.0")
+// Add scalastyle plugin
+addSbtPlugin("org.scalastyle" %% "scalastyle-sbt-plugin" % "0.8.0")
