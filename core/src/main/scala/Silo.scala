@@ -2,12 +2,6 @@ package silt
 
 import scala.concurrent.Future
 
-trait SiloFactory[T] {
-
-  def data: T
-
-}
-
 class Silo[T](private[silt] val data: T) {
 
   //def internalApply[A, V, B <: Traversable[V]](fun: A => B): LocalSilo[V, B] = {
