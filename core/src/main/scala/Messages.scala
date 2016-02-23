@@ -1,5 +1,7 @@
 package silt
 
+import silt.core.Node
+
 sealed trait Identifiable {
   val id: MsgId
 }

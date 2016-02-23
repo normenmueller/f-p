@@ -2,14 +2,12 @@ package silt
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import scala.collection._
-import scala.collection.concurrent.TrieMap
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.pickling.Pickler
-import scala.util.{ Try, Success, Failure }
+import com.typesafe.scalalogging.{StrictLogging => Logging}
 
-import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import scala.pickling.Pickler
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 /** Provides a set of operations needed to create [[SiloSystem]]s. */
 object SiloSystem extends AnyRef with Logging {
@@ -40,8 +38,8 @@ object SiloSystem extends AnyRef with Logging {
     Class.forName(clazz).newInstance().asInstanceOf[silt.impl.SiloSystem]
   } flatMap { system =>
     port match {
-      case None       => Future.successful(system)
-      case Some(port) => system withServer Host("127.0.0.1", port)
+      case None => Future.successful(system)
+      case Some(portNumber) => system withServer Host("127.0.0.1", portNumber)
     }
   }
 
@@ -67,26 +65,24 @@ trait SiloSystem extends SiloRefFactory with Logging {
 
   override def populate[T](at: Host)(fun: () => Silo[T])
     (implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] = {
-    request(at) { msgId => Populate(msgId, fun) } map {
-      case Populated(_, ref) => new Materialized[T](ref, at)(self)
-      case _ => throw new Exception(s"Silo population at `$at` failed.")
+      request(at) { msgId => Populate(msgId, fun) } map {
+        case Populated(_, ref) => new MaterializedSilo[T](ref, at)(self)
+        case _ => throw new Exception(s"Silo population at `$at` failed.")
+      }
     }
-  }
 
 }
 
-/* Represents the internals of a [[SiloSystem]].
- *
- * These internal are implementation details to be hidden from the public API.
- * This class is meant to be an abstraction for different backend (cf. [[Server]]).
- */
+/** Represents the internals of a [[SiloSystem]].
+  *
+  * These internal are implementation details to be hidden from the public API.
+  * This class is meant to be an abstraction for different backends.
+  */
 private[silt] trait Internals {
 
-  // Send request `request` to `to`.
   def request[R <: silt.RSVP: Pickler](at: Host)(request: MsgId => R): Future[Response]
 
-  // Generator for system message Ids
-  object msgId {
+  object MsgIdGenerator {
 
     private val ids = new AtomicInteger(10)
 

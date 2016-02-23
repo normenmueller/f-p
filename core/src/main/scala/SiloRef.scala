@@ -1,12 +1,10 @@
 package silt
 
-import scala.spores._
-import scala.pickling._
-import Defaults._
+import com.typesafe.scalalogging.{StrictLogging => Logging}
+import silt.core._
 
 import scala.concurrent.Future
-
-import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import scala.pickling._
 
 /** Interface implemented by [[SiloSystem]], the only two places
   * from which you can get new silos.
@@ -22,8 +20,7 @@ trait SiloRefFactory {
     *
     * @return [[silt.SiloRef]], which identifies the created silo
     */
-  def populate[T](at: Host)(fun: () => Silo[T])
-    (implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]]
+  def populate[T](at: Host)(fun: () => Silo[T])(implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]]
 
   /** Uploads a silo to a `Host` populated by `factory`.
     *
@@ -32,9 +29,8 @@ trait SiloRefFactory {
     *
     * @return [[silt.SiloRef]], which identifies the created silo
     */
-  final def populate[T](at: Host, factory: SiloFactory[T])
-    (implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] =
-      populate(at) { () => new Silo[T](factory.data) }
+  final def populate[T](at: Host, factory: SiloFactory[T])(implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] =
+    populate(at) { () => new Silo[T](factory.data) }
 }
 
 /** A `Silo` is uniquely identified by an `id`. */
@@ -59,40 +55,42 @@ trait SiloRef[T] {
 
   final override def equals(that: Any): Boolean = that match {
     case other: SiloRef[_] => id == other.id
-    case _                 => false
+    case _ => false
   }
 
 }
 
-abstract class SiloRefAdapter[T]() extends SiloRef[T] with Logging {
+abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
 
   import logger._
-  import scala.concurrent.ExecutionContext.Implicits.global
+  import silt.core._
 
-  import binary._
   import Defaults._
-  //import core.Picklers._
-  import scala.pickling._
+  import scala.concurrent.ExecutionContext.Implicits.global
 
   protected def system: silt.Internals
 
   protected def node: Node
 
   override def send(): Future[T] = {
+    /*
     debug(s"Sending graph to host `${id.at}`...")
     system.request(id.at) { msgId => Traverse(msgId, node) } map {
       case Traversed(_, v) => v.asInstanceOf[T]
-      case _               => throw new Exception(s"Computation at `${id.at}` failed.")
+      case _ => throw new Exception(s"Computation at `${id.at}` failed.")
     }
+    */
+    ???
   }
 
 }
 
-class Materialized[T](refId: RefId, at: Host)(protected val system: silt.Internals) extends SiloRefAdapter[T] {
+class MaterializedSilo[T](refId: RefId, at: Host)
+    (protected val system: silt.Internals) extends SiloRefAdapter[T] {
 
   override val id = SiloRefId(refId, at)
 
-  override def node(): graph.Node = new graph.Materialized(id)
+  override def node = Materialized(refId)
 
 }
 

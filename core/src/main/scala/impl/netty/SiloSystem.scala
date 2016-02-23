@@ -20,7 +20,7 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
   override val promiseOf = new TrieMap[MsgId, Promise[Response]]
 
   override def request[R <: silt.RSVP: Pickler](at: Host)(request: MsgId => R): Future[silt.Response] =
-    connect(at) flatMap { via => ask(via, request(msgId.next)) }
+    connect(at) flatMap { via => ask(via, request(MsgIdGenerator.next)) }
 
   override def withServer(host: Host): Future[silt.SiloSystem] = {
     val promise = Promise[silt.SiloSystem]
@@ -54,7 +54,7 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
       case _ =>
         promise success (this match {
           case server: Server => server.stop()
-          case _              => ()
+          case _ => ()
         })
         info(s"Silo system `$name` terminating done.")
     }
@@ -122,7 +122,7 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
       // response to request, so look up promise
       msg match {
         case theMsg: Response => promiseOf(theMsg.id).success(theMsg)
-        case _                => /* do nothing */
+        case _ => /* do nothing */
       }
     }
 

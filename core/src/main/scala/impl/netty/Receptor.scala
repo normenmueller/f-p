@@ -10,7 +10,7 @@ import Defaults._
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
 private[netty] class Receptor(mq: BlockingQueue[netty.Message])
-    extends AnyRef with Tell with Runnable with Logging {
+  extends AnyRef with Tell with Runnable with Logging {
 
   import logger._
 

@@ -8,6 +8,8 @@
 .target/
 target/
 project/project/
+.idea/
+out/
 
 # wiki
 wiki

@@ -6,10 +6,9 @@ import scala.pickling._
 import scala.util.{ Success, Failure }
 import silt._
 
-/**
- * Test silo system implementation requirements in case of one wants to
- *  actually roll his own silo system.
- */
+/** Test silo system implementation requirements in case of one wants to
+  * actually roll his own silo system.
+  */
 //class SiloSystem extends AnyRef with silt.impl.Requirements {
 //
 //  // Members declared in silt.SiloSystem
