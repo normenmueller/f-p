@@ -26,4 +26,3 @@ trait Ask {
 
 }
 
-// vim: set tw=120 ft=scala:

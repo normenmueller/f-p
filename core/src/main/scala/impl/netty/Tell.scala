@@ -23,7 +23,6 @@ trait Tell {
 
     promise.future
   }
-  
+
 }
 
-// vim: set tw=120 ft=scala:

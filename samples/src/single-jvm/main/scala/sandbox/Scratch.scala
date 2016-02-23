@@ -68,9 +68,10 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
       try {
         Await.result(system.terminate(), 2.seconds)
         logger.info(s"Silo system `${system.name}` terminated.")
-      } catch { case err: Throwable => 
-        println(err.getMessage())
-        sys.exit(1)
+      } catch {
+        case err: Throwable =>
+          println(err.getMessage())
+          sys.exit(1)
       }
 
     case Failure(error) => logger.error(s"Could not start silo system in server mode:\n ${error.getMessage}")

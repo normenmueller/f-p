@@ -35,4 +35,3 @@ class Silo[T](private[silt] val data: T) {
 
 }
 
-// vim: set tw=120 ft=scala:

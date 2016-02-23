@@ -5,12 +5,13 @@ package datastructure
 import scala.collection.mutable
 import scala.collection.Traversable
 
-/** An immutable AVL Tree implementation formerly used by mutable.TreeSet
-  *
-  * Copied over from Scala Library 2.11.7.
-  *
-  * @author Lucien Pereira
-  */
+/**
+ * An immutable AVL Tree implementation formerly used by mutable.TreeSet
+ *
+ * Copied over from Scala Library 2.11.7.
+ *
+ * @author Lucien Pereira
+ */
 sealed trait AVLTree[+A] extends Traversable[A] with Serializable {
   def balance: Int
 
@@ -28,27 +29,31 @@ sealed trait AVLTree[+A] extends Traversable[A] with Serializable {
 
   def contains[B >: A](value: B, ordering: Ordering[B]): Boolean = false
 
-  /** Returns a new tree containing the given element.  Thows an
-    * IllegalArgumentException if element is already present.
-    */
+  /**
+   * Returns a new tree containing the given element.  Thows an
+   * IllegalArgumentException if element is already present.
+   */
   def insert[B >: A](value: B, ordering: Ordering[B]): AVLTree[B] = Node(
     value,
     Leaf, Leaf
   )
 
-  /** Return a new tree which not contains given element.
-    */
+  /**
+   * Return a new tree which not contains given element.
+   */
   def remove[B >: A](value: B, ordering: Ordering[B]): AVLTree[A] =
     throw new NoSuchElementException(String.valueOf(value))
 
-  /** Return a tuple containing the smallest element of the provided tree and a
-    * new tree from which this element has been extracted.
-    */
+  /**
+   * Return a tuple containing the smallest element of the provided tree and a
+   * new tree from which this element has been extracted.
+   */
   def removeMin[B >: A]: (B, AVLTree[B]) = sys.error("Should not happen.")
 
-  /** Return a tuple containing the biggest element of the provided tree and a
-    * new tree from which this element has been extracted.
-    */
+  /**
+   * Return a tuple containing the biggest element of the provided tree and a
+   * new tree from which this element has been extracted.
+   */
   def removeMax[B >: A]: (B, AVLTree[B]) = sys.error("Should not happen.")
 
   def rebalance[B >: A]: AVLTree[B] = this
@@ -85,9 +90,10 @@ case class Node[A](data: A, left: AVLTree[A], right: AVLTree[A]) extends AVLTree
       right.contains(value, ordering)
   }
 
-  /** Returns a new tree containing the given element.  Thows an
-    * IllegalArgumentException if element is already present.
-    */
+  /**
+   * Returns a new tree containing the given element.  Thows an
+   * IllegalArgumentException if element is already present.
+   */
   override def insert[B >: A](value: B, ordering: Ordering[B]) = {
     val ord = ordering.compare(value, data)
     // if (0 == ord)
@@ -98,8 +104,9 @@ case class Node[A](data: A, left: AVLTree[A], right: AVLTree[A]) extends AVLTree
       Node(data, left, right.insert(value, ordering)).rebalance
   }
 
-  /** Return a new tree which not contains given element.
-    */
+  /**
+   * Return a new tree which not contains given element.
+   */
   override def remove[B >: A](value: B, ordering: Ordering[B]): AVLTree[A] = {
     val ord = ordering.compare(value, data)
     if (ord == 0) {
@@ -121,9 +128,10 @@ case class Node[A](data: A, left: AVLTree[A], right: AVLTree[A]) extends AVLTree
     }
   }
 
-  /** Return a tuple containing the smallest element of the provided tree and a
-    * new tree from which this element has been extracted.
-    */
+  /**
+   * Return a tuple containing the smallest element of the provided tree and a
+   * new tree from which this element has been extracted.
+   */
   override def removeMin[B >: A]: (B, AVLTree[B]) = {
     if (Leaf == left)
       (data, right)
@@ -133,9 +141,10 @@ case class Node[A](data: A, left: AVLTree[A], right: AVLTree[A]) extends AVLTree
     }
   }
 
-  /** Return a tuple containing the biggest element of the provided tree and a
-    * new tree from which this element has been extracted.
-    */
+  /**
+   * Return a tuple containing the biggest element of the provided tree and a
+   * new tree from which this element has been extracted.
+   */
   override def removeMax[B >: A]: (B, AVLTree[B]) = {
     if (Leaf == right)
       (data, left)

@@ -18,7 +18,7 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
   override val name = (java.util.UUID.randomUUID()).toString
 
   override val promiseOf = new TrieMap[MsgId, Promise[Response]]
-  
+
   override def request[R <: silt.RSVP: Pickler](at: Host)(request: MsgId => R): Future[silt.Response] =
     connect(at) flatMap { via => ask(via, request(msgId.next)) }
 
@@ -38,20 +38,25 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
     val promise = Promise[Unit]
 
     info(s"Silo system `$name` terminating...")
-    val to = statusOf collect { case (host, Connected(channel, worker)) =>
-      trace(s"Closing connection to `$host`.")
-      tell(channel, Disconnect)
-        .andThen { case _ => worker.shutdownGracefully() }
-        .andThen { case _ => statusOf += (host -> Disconnected) }
+    val to = statusOf collect {
+      case (host, Connected(channel, worker)) =>
+        trace(s"Closing connection to `$host`.")
+        tell(channel, Disconnect)
+          .andThen { case _ => worker.shutdownGracefully() }
+          .andThen { case _ => statusOf += (host -> Disconnected) }
     }
 
     // Close connections FROM other silo systems
     // val from = XXX
 
     // Terminate underlying server
-    Future.sequence(to /*, from*/ ) onComplete { case _ =>
-      promise success (this match { case server: Server => server.stop() case _ => () })
-      info(s"Silo system `$name` terminating done.")
+    Future.sequence(to) onComplete {
+      case _ =>
+        promise success (this match {
+          case server: Server => server.stop()
+          case _              => ()
+        })
+        info(s"Silo system `$name` terminating done.")
     }
 
     promise.future
@@ -61,13 +66,14 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
 
   import scala.collection._
   import _root_.io.netty.bootstrap.Bootstrap
-  import _root_.io.netty.channel.{ Channel, ChannelHandler, ChannelHandlerContext, ChannelInitializer, ChannelOption, SimpleChannelInboundHandler }
+  import _root_.io.netty.channel.{ Channel, ChannelHandler, ChannelHandlerContext }
+  import _root_.io.netty.channel.{ ChannelInitializer, ChannelOption, SimpleChannelInboundHandler }
   import _root_.io.netty.channel.nio.NioEventLoopGroup
   import _root_.io.netty.channel.socket.SocketChannel
   import _root_.io.netty.channel.socket.nio.NioSocketChannel
   import _root_.io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
-  private val statusOf: mutable.Map[Host, Status]= new TrieMap[Host, Status]
+  private val statusOf: mutable.Map[Host, Status] = new TrieMap[Host, Status]
 
   private def connect(to: Host): Future[Channel] = statusOf.get(to) match {
     case None => channel(to) map { status =>
@@ -86,29 +92,30 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
     try {
       val b = new Bootstrap
       b.group(wrkr)
-       .channel(classOf[NioSocketChannel])
-       .handler(new ChannelInitializer[SocketChannel] {
-         override def initChannel(ch: SocketChannel): Unit = {
-           val pipeline = ch.pipeline()
-           pipeline.addLast(new Logger(LogLevel.TRACE))
-           pipeline.addLast(new Encoder())
-           pipeline.addLast(new Decoder())
-           pipeline.addLast(new ClientHandler()) 
-         }
-       })
-       .option(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
-       .connect(to.address, to.port).map(Connected(_, wrkr))
-    } catch { case t: Throwable =>
-      wrkr.shutdownGracefully()
-      throw t
+        .channel(classOf[NioSocketChannel])
+        .handler(new ChannelInitializer[SocketChannel] {
+          override def initChannel(ch: SocketChannel): Unit = {
+            val pipeline = ch.pipeline()
+            pipeline.addLast(new Logger(LogLevel.TRACE))
+            pipeline.addLast(new Encoder())
+            pipeline.addLast(new Decoder())
+            pipeline.addLast(new ClientHandler())
+          }
+        })
+        .option(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
+        .connect(to.address, to.port).map(Connected(_, wrkr))
+    } catch {
+      case t: Throwable =>
+        wrkr.shutdownGracefully()
+        throw t
     }
   }
 
   @ChannelHandler.Sharable
   private class ClientHandler() extends SimpleChannelInboundHandler[silt.Message] with Logging {
-  
+
     import logger._
-  
+
     override def channelRead0(ctx: ChannelHandlerContext, msg: silt.Message): Unit = {
       trace(s"Received message: $msg")
 
@@ -118,14 +125,13 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
         case _                => /* do nothing */
       }
     }
-  
+
     override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
       cause.printStackTrace()
       ctx.close()
     }
-  
+
   }
 
 }
 
-// vim: set tw=120 ft=scala:

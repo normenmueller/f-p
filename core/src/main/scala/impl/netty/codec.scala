@@ -15,18 +15,19 @@ import _root_.io.netty.handler.codec.{ ByteToMessageDecoder, MessageToByteEncode
 
 import _root_.com.typesafe.scalalogging.{ StrictLogging => Logging }
 
-/* Encoder converts F-P system messages to a format suitable for transmission.
+/* Converts F-P system messages to a format suitable for transmission.
  *
- * Note: Once a message has been encoded, it will be ''automatically'' released by the Netty codec framework. Cf.
- * [[io.netty.handler.codec.MessageToByteEncode#write]] 
+ * Note: Once a message has been encoded, it will be ''automatically'' released
+ * by the Netty codec framework. Cf.[[io.netty.handler.codec.MessageToByteEncode#write]]
  */
 @ChannelHandler.Sharable
 private[netty] class Encoder extends MessageToByteEncoder[silt.Message] with Logging {
 
   import logger._
 
-  /* Called with the outbound message (of type [[silt.Message]]) that this class will encode to a
-   * [[_root_.io.netty.buffer.ByteBuf]]. The [[_root_.io.netty.buffer.ByteBuf]] is then forwarded to the next
+  /* Called with the outbound message (of type [[silt.Message]]) that this
+   * class will encode to a [[_root_.io.netty.buffer.ByteBuf]].
+   * The [[_root_.io.netty.buffer.ByteBuf]] is then forwarded to the next
    * [[_root_.io.netty.channel.ChannelOutboundHandler]] in the pipeline.
    */
   override def encode(ctx: ChannelHandlerContext, msg: silt.Message, out: ByteBuf): Unit = {
@@ -34,7 +35,7 @@ private[netty] class Encoder extends MessageToByteEncoder[silt.Message] with Log
     out.writeBytes(pickle(msg))
   }
 
-  def pickle[T <: silt.Message: Pickler](msg: T): Array[Byte] = msg.pickle.value 
+  def pickle[T <: silt.Message: Pickler](msg: T): Array[Byte] = msg.pickle.value
 
   // XXX Why not just `msg.pickle.value`?
   //def pickle[T <: silt.Message: Pickler](msg: T): Array[Byte] = {
@@ -59,21 +60,25 @@ private[netty] class Encoder extends MessageToByteEncoder[silt.Message] with Log
 
 }
 
-/* Decoder converts a network stream, encoded by [[Encoder]] back to the F-P system message format.
+/* Converts a network stream, encoded by [[Encoder]], back to the F-P
+ * system message format.
  *
- * Note: [[io.netty.handler.codec.ByteToMessageDecoder MUST NOT]] be annotated with @Sharable.
+ * Note: [[io.netty.handler.codec.ByteToMessageDecoder MUST NOT]] be annotated
+ * with @Sharable.
  *
- * Note: Once a message has been decoded, it will be ''automatically'' released by this decoder
- * ([[io.netty.handler.codec.ByteToMessageDecoder Pitfalls]]).
+ * Note: Once a message has been decoded, it will be ''automatically'' released
+ * by this decoder ([[io.netty.handler.codec.ByteToMessageDecoder Pitfalls]]).
  */
 private[netty] class Decoder extends ByteToMessageDecoder with Logging {
 
   import java.util.{ List => JList }
   import logger._
 
-  /* Called with a [[ByteBuf]] containing incoming data and a List to which decoded messages are added. This call is
-   * repeated until it is determined that no new items have been added to the List or no more bytes are readable in the
-   * ByteBuf. Then, if the List is not empty, its contents are passed to the next handler in the pipeline.
+  /* Called with a [[ByteBuf]] containing incoming data and a List to which
+   * decoded messages are added. This call is repeated until it is determined
+   * that no new items have been added to the List or no more bytes are readable
+   * in the ByteBuf. Then, if the List is not empty, its contents are passed to
+   * the next handler in the pipeline.
    */
   override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: JList[Object]): Unit = try {
     //import json._
@@ -95,7 +100,8 @@ private[netty] class Decoder extends ByteToMessageDecoder with Logging {
 
       // XXX From to time, during compilation, I get the following warning:
       //
-      // [warn] /Users/nrm/Sources/f-p.nrm/core/src/main/scala/impl/netty/codec.scala:84: method newTermName in trait Names is deprecated: Use TermName instead
+      // [warn] /Users/nrm/Sources/f-p.nrm/core/src/main/scala/impl/netty/codec.scala:84:
+      // method newTermName in trait Names is deprecated: Use TermName instead
       // [warn]       val msg = BinaryPickle(arr).unpickle[silt.Message]
       // [warn]                                           ^
       // [warn] one warning found
@@ -109,4 +115,3 @@ private[netty] class Decoder extends ByteToMessageDecoder with Logging {
 
 }
 
-// vim: set tw=120 ft=scala:

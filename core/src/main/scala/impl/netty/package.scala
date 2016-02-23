@@ -7,7 +7,8 @@ import scala.concurrent.{ ExecutionContext, Promise, Future }
 import scala.language.implicitConversions
 import scala.util.Try
 
-import io.netty.channel.{ Channel, ChannelHandlerContext, ChannelFuture, ChannelFutureListener, EventLoopGroup }
+import io.netty.channel.{ ChannelFutureListener, EventLoopGroup }
+import io.netty.channel.{ Channel, ChannelHandlerContext, ChannelFuture }
 
 package object netty {
 
@@ -38,4 +39,3 @@ package object netty {
 
 }
 
-// vim: set tw=120 ft=scala:

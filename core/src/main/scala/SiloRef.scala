@@ -1,47 +1,52 @@
 package silt
 
+import scala.spores._
+import scala.pickling._
+import Defaults._
+
 import scala.concurrent.Future
-import scala.pickling.{ Pickler, Unpickler }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
-/** Interface implemented by [[SiloSystem]], the only two places from which you can get fresh silos. */
+/** Interface implemented by [[SiloSystem]], the only two places
+  * from which you can get new silos.
+  */
 trait SiloRefFactory {
 
   /** Upload a silo to `host` with the initialization process defined by `fun`.
     *
-    * @tparam T
+    * @tparam T Type of data to be populated
     *
-    * @param fun silo initialization logic
-    * @param at target host of the the to be created silo
+    * @param fun Silo initialization logic
+    * @param at Target host of the the to be created silo
     *
-    * @return a [[silt.SiloRef]], identifying the uploaded silo, as soon as the initialization process has been
-    * completed.
+    * @return [[silt.SiloRef]], which identifies the created silo
     */
-  def populate[T](at: Host)(fun: () => Silo[T])(implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]]
+  def populate[T](at: Host)(fun: () => Silo[T])
+    (implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]]
 
-  /** Uploads a silo to `host` with the initialization process of `fac`.
+  /** Uploads a silo to a `Host` populated by `factory`.
     *
-    * @param fac silo initialization logic
-    * @param at target host of the the to be created silo
+    * @param factory Silo initialization logic
+    * @param at Target host where the `Silo` will be created
     *
-    * @return a [[silt.SiloRef]], identifying the uploaded silo, as soon as the initialization process has been
-    * completed.
+    * @return [[silt.SiloRef]], which identifies the created silo
     */
-  final def populate[T](at: Host, fac: SiloFactory[T])(implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] =
-    populate(at) { () => new Silo[T](fac.data) }
-
+  final def populate[T](at: Host, factory: SiloFactory[T])
+    (implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] =
+      populate(at) { () => new Silo[T](factory.data) }
 }
 
-/* An Id of a silo reference. */
+/** A `Silo` is uniquely identified by an `id`. */
 private[silt] case class SiloRefId(id: RefId, at: Host)
 
 /** Immutable and serializable handle to a silo.
   *
-  * The referenced silo may or may not reside on the local host or inside the same silo system. A [[SiloRef]] can be
-  * obtained from [[SiloRefFactory]], an interface which is implemented by [[SiloSystem]].
+  * The referenced silo may or may not reside on the local host or inside
+  * the same silo system. A [[SiloRef]] can be obtained from [[SiloRefFactory]],
+  * an interface which is implemented by [[SiloSystem]].
   *
-  * @tparam T type of referenced silo's data
+  * @tparam T Type of data populated in the `Silo`
   */
 trait SiloRef[T] {
 
@@ -63,14 +68,15 @@ abstract class SiloRefAdapter[T]() extends SiloRef[T] with Logging {
 
   import logger._
   import scala.concurrent.ExecutionContext.Implicits.global
-  import scala.pickling._
-  import Defaults._
+
   import binary._
-  import graph.Picklers._
+  import Defaults._
+  //import core.Picklers._
+  import scala.pickling._
 
   protected def system: silt.Internals
 
-  protected def node: graph.Node
+  protected def node: Node
 
   override def send(): Future[T] = {
     debug(s"Sending graph to host `${id.at}`...")
@@ -90,4 +96,3 @@ class Materialized[T](refId: RefId, at: Host)(protected val system: silt.Interna
 
 }
 
-// vim: set tw=120 ft=scala:
