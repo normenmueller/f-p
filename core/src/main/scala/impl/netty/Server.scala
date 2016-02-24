@@ -1,5 +1,5 @@
-package silt
-package impl
+package fp
+package backend
 package netty
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
@@ -17,14 +17,14 @@ import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 import io.netty.channel.{ ChannelOption, SimpleChannelInboundHandler }
 import io.netty.channel.{ ChannelHandler, ChannelHandlerContext, ChannelInitializer }
 
-private[netty] trait Server extends AnyRef with impl.Server with Logging {
+private[netty] trait Server extends AnyRef with backend.Server with Logging {
 
-  self: silt.SiloSystem =>
+  self: fp.SiloSystem =>
 
   import logger._
 
   /* Promise the server is up and running. */
-  protected def started: Promise[silt.SiloSystem]
+  protected def started: Promise[fp.SiloSystem]
 
   /* Netty server constituents */
   private val server = new ServerBootstrap
@@ -78,9 +78,9 @@ private[netty] trait Server extends AnyRef with impl.Server with Logging {
    * [[io.netty.util.ReferenceCountUtil#release(Object)]].
    */
   @ChannelHandler.Sharable
-  private class ServerHandler() extends SimpleChannelInboundHandler[silt.Message] with Logging {
+  private class ServerHandler() extends SimpleChannelInboundHandler[fp.Message] with Logging {
 
-    override def channelRead0(ctx: ChannelHandlerContext, msg: silt.Message): Unit =
+    override def channelRead0(ctx: ChannelHandlerContext, msg: fp.Message): Unit =
       mq add netty.Message(ctx, msg)
 
     override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {

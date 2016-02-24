@@ -1,5 +1,5 @@
-package silt
-package impl
+package fp
+package backend
 package netty
 
 import java.io.ByteArrayOutputStream
@@ -21,7 +21,7 @@ import _root_.com.typesafe.scalalogging.{ StrictLogging => Logging }
  * by the Netty codec framework. Cf.[[io.netty.handler.codec.MessageToByteEncode#write]]
  */
 @ChannelHandler.Sharable
-private[netty] class Encoder extends MessageToByteEncoder[silt.Message] with Logging {
+private[netty] class Encoder extends MessageToByteEncoder[fp.Message] with Logging {
 
   import logger._
 
@@ -30,12 +30,12 @@ private[netty] class Encoder extends MessageToByteEncoder[silt.Message] with Log
    * The [[_root_.io.netty.buffer.ByteBuf]] is then forwarded to the next
    * [[_root_.io.netty.channel.ChannelOutboundHandler]] in the pipeline.
    */
-  override def encode(ctx: ChannelHandlerContext, msg: silt.Message, out: ByteBuf): Unit = {
+  override def encode(ctx: ChannelHandlerContext, msg: fp.Message, out: ByteBuf): Unit = {
     trace(s"Encoding message: $msg")
     out.writeBytes(pickle(msg))
   }
 
-  def pickle[T <: silt.Message: Pickler](msg: T): Array[Byte] = msg.pickle.value
+  def pickle[T <: fp.Message: Pickler](msg: T): Array[Byte] = msg.pickle.value
 
   // XXX Why not just `msg.pickle.value`?
   //def pickle[T <: silt.Message: Pickler](msg: T): Array[Byte] = {
@@ -106,7 +106,7 @@ private[netty] class Decoder extends ByteToMessageDecoder with Logging {
       // [warn]                                           ^
       // [warn] one warning found
 
-      val msg = BinaryPickle(arr).unpickle[silt.Message]
+      val msg = BinaryPickle(arr).unpickle[fp.Message]
       trace(s"Decoded message: $msg")
       out add msg
     } else () // nop

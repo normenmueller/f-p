@@ -1,5 +1,5 @@
-package silt
-package impl
+package fp
+package backend
 package netty
 
 import scala.concurrent.{ ExecutionContext, Future, Promise }
@@ -13,7 +13,7 @@ trait Tell {
   import ExecutionContext.Implicits.global
 
   // XXX change return type to `Unit` but `sync`?
-  def tell[M <: silt.Message: Pickler](via: Channel, message: M): Future[Channel] = {
+  def tell[M <: fp.Message: Pickler](via: Channel, message: M): Future[Channel] = {
     val promise = Promise[Channel]
 
     via.writeAndFlush(message) onComplete {

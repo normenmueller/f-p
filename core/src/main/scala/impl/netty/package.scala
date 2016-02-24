@@ -1,5 +1,5 @@
-package silt
-package impl
+package fp
+package backend
 
 import java.util.concurrent.CancellationException
 
@@ -14,7 +14,7 @@ package object netty {
 
   // F-P internal system message enriched by Netty-specific context
 
-  private[netty] final case class Message(ctx: ChannelHandlerContext, msg: silt.Message)
+  private[netty] final case class Message(ctx: ChannelHandlerContext, msg: fp.Message)
 
   // Connection status
 

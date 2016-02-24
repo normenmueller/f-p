@@ -1,6 +1,6 @@
-package silt
+package fp
 
-import silt.core.Node
+import fp.core.Node
 
 sealed trait Identifiable {
   val id: MsgId

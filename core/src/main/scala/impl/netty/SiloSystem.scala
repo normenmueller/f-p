@@ -1,5 +1,5 @@
-package silt
-package impl
+package fp
+package backend
 package netty
 
 import scala.collection.concurrent.TrieMap
@@ -11,7 +11,7 @@ import Defaults._
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
 /** A Netty-based implementation of a silo system. */
-class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Logging {
+class SiloSystem extends AnyRef with backend.SiloSystem with Tell with Ask with Logging {
 
   import logger._
 
@@ -19,11 +19,11 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
 
   override val promiseOf = new TrieMap[MsgId, Promise[Response]]
 
-  override def request[R <: silt.RSVP: Pickler](at: Host)(request: MsgId => R): Future[silt.Response] =
+  override def request[R <: fp.RSVP: Pickler](at: Host)(request: MsgId => R): Future[fp.Response] =
     connect(at) flatMap { via => ask(via, request(MsgIdGenerator.next)) }
 
-  override def withServer(host: Host): Future[silt.SiloSystem] = {
-    val promise = Promise[silt.SiloSystem]
+  override def withServer(host: Host): Future[fp.SiloSystem] = {
+    val promise = Promise[fp.SiloSystem]
 
     executor execute (new SiloSystem with Server {
       override val at = host
@@ -112,11 +112,11 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
   }
 
   @ChannelHandler.Sharable
-  private class ClientHandler() extends SimpleChannelInboundHandler[silt.Message] with Logging {
+  private class ClientHandler() extends SimpleChannelInboundHandler[fp.Message] with Logging {
 
     import logger._
 
-    override def channelRead0(ctx: ChannelHandlerContext, msg: silt.Message): Unit = {
+    override def channelRead0(ctx: ChannelHandlerContext, msg: fp.Message): Unit = {
       trace(s"Received message: $msg")
 
       // response to request, so look up promise

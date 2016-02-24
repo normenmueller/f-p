@@ -1,4 +1,4 @@
-package silt
+package fp
 package core
 
 import scala.language.existentials
@@ -10,7 +10,7 @@ object PickleAlias {
   type PickleFunction[T] = (T, PBuilder) => Unit
 }
 
-import silt.core.PickleAlias._
+import fp.core.PickleAlias._
 
 trait Tagged[T] {
   def tag: FastTypeTag[T]
@@ -18,7 +18,8 @@ trait Tagged[T] {
 
 trait Helpers {
   /** Used when we need to pickle a type whose type parameters
-    * will be erased by the JVM because of the type erasure. */
+    * will be erased by the JVM because of the type erasure.
+    */
   def rawFastTypeTag[T](v: T): FastTypeTag[Any] =
     FastTypeTag.mkRaw(v.getClass, runtime.currentMirror)
       .asInstanceOf[FastTypeTag[Any]]
@@ -30,10 +31,11 @@ trait Writer[T] extends Pickler[T] with Tagged[T] with Helpers {
   def pickle(picklee: T, builder: PBuilder): Unit = {
     builder.beginEntry(picklee)
     elemsToPickle.foreach {
-      (t: (String, PickleFunction[T])) => {
-        val (fieldName, f) = t
-        builder.putField(fieldName, f(picklee, _))
-      }
+      (t: (String, PickleFunction[T])) =>
+        {
+          val (fieldName, f) = t
+          builder.putField(fieldName, f(picklee, _))
+        }
     }
     builder.endEntry()
   }

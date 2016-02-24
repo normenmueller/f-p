@@ -1,6 +1,6 @@
-/** This package, [[silt]], contains ...
+/** This package, [[fp]], contains ...
   */
-package object silt {
+package object fp {
 
   /** A [[https://en.wikipedia.org/wiki/Host_(network) network host]] is a
     * computer or other device connected to a computer network. A network host
@@ -17,9 +17,9 @@ package object silt {
   }
 
   /** A unique silo sytem message identifier. */
-  final case class MsgId private[silt] (value: Int) extends AnyVal
+  final case class MsgId private[fp] (value: Int) extends AnyVal
 
   /** A unique silo sytem reference identifier. */
-  final case class RefId private[silt] (value: Int) extends AnyVal
+  final case class RefId private[fp] (value: Int) extends AnyVal
 }
 

@@ -1,8 +1,8 @@
-package silt
-package impl
+package fp
+package backend
 
 /** The internal API of a F-P server. */
-private[impl] trait Server extends Runnable {
+private[backend] trait Server extends Runnable {
 
   /** Host this server is running at */
   def at: Host

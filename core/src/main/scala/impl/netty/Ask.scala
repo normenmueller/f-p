@@ -1,5 +1,5 @@
-package silt
-package impl
+package fp
+package backend
 package netty
 
 import scala.collection._
@@ -15,7 +15,7 @@ trait Ask {
 
   def promiseOf: mutable.Map[MsgId, Promise[Response]]
 
-  def ask[R <: silt.RSVP: Pickler](via: Channel, request: R): Future[Response] = {
+  def ask[R <: fp.RSVP: Pickler](via: Channel, request: R): Future[Response] = {
     val promise = Promise[Response]
 
     promiseOf += (request.id -> promise)

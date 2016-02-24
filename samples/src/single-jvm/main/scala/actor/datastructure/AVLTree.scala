@@ -1,4 +1,4 @@
-package silt.samples
+package fp.samples
 package actor
 package datastructure
 

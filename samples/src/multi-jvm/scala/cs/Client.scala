@@ -8,7 +8,7 @@ import scala.util.{ Success, Failure }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
-import silt._
+import fp._
 
 /** A silo system running in client mode can be understood as ''master'', or ''driver''.
   * 
