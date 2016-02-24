@@ -1,6 +1,8 @@
-package silt
+package fp
 package impl
 package netty
+
+import fp.model.{ Disconnect, Response, ClientRequest, Message }
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ ExecutionContext, Future, Promise }
@@ -15,21 +17,21 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
 
   import logger._
 
-  override val name = (java.util.UUID.randomUUID()).toString
+  override val name = java.util.UUID.randomUUID.toString
 
   override val promiseOf = new TrieMap[MsgId, Promise[Response]]
 
-  override def request[R <: silt.RSVP: Pickler](at: Host)(request: MsgId => R): Future[silt.Response] =
-    connect(at) flatMap { via => ask(via, request(MsgIdGenerator.next)) }
+  override def request[R <: ClientRequest: Pickler](at: Host)(request: MsgId => R): Future[Response] =
+    connect(at) flatMap { via => ask(via, request(MsgIdGen.next)) }
 
-  override def withServer(host: Host): Future[silt.SiloSystem] = {
-    val promise = Promise[silt.SiloSystem]
+  override def withServer(host: Host): Future[fp.SiloSystem] = {
+    val promise = Promise[fp.SiloSystem]
 
-    executor execute (new SiloSystem with Server {
+    executor execute new SiloSystem with Server {
       override val at = host
       override val name = host.toString
       override val started = promise
-    })
+    }
 
     promise.future
   }
@@ -112,11 +114,11 @@ class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Log
   }
 
   @ChannelHandler.Sharable
-  private class ClientHandler() extends SimpleChannelInboundHandler[silt.Message] with Logging {
+  private class ClientHandler() extends SimpleChannelInboundHandler[Message] with Logging {
 
     import logger._
 
-    override def channelRead0(ctx: ChannelHandlerContext, msg: silt.Message): Unit = {
+    override def channelRead0(ctx: ChannelHandlerContext, msg: model.Message): Unit = {
       trace(s"Received message: $msg")
 
       // response to request, so look up promise

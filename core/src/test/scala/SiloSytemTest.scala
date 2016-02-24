@@ -1,4 +1,4 @@
-package silt
+package fp
 package test
 
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
@@ -11,18 +11,18 @@ import org.scalatest.{ FlatSpec, Matchers }
 class SiloSystemTest extends FlatSpec with Matchers {
 
   "Instantiation" should "yield a default silo system" in {
-    Await.ready(silt.SiloSystem(), 10.seconds) map { _ shouldBe a [silt.SiloSystem] }
+    Await.ready(fp.SiloSystem(), 10.seconds) map { _ shouldBe a [fp.SiloSystem] }
   } 
 
   it should "use the default, Netty-based realization" in {
-    Await.ready(silt.SiloSystem(), 10.seconds) map { _ shouldBe a [silt.impl.SiloSystem] }
+    Await.ready(fp.SiloSystem(), 10.seconds) map { _ shouldBe a [fp.impl.SiloSystem] }
   } 
 
   it should "throw an exception in case of wrong `silo.system.impl` parameter" in {
     val osp = Option(System.getProperty("silo.system.impl"))
 
     System.setProperty("silo.system.impl", "XXX")
-    Await.ready(silt.SiloSystem(), 10.seconds) map { _ shouldBe a [ClassNotFoundException] } 
+    Await.ready(fp.SiloSystem(), 10.seconds) map { _ shouldBe a [ClassNotFoundException] }
 
     osp match {
       case None    => System.clearProperty("silo.system.impl")
@@ -31,8 +31,8 @@ class SiloSystemTest extends FlatSpec with Matchers {
   }
 
   it should "throw an exception in case of port is already taken" in {
-    val system = Await.result(silt.SiloSystem(Some(8090)), 10.seconds)
-    Try(Await.result(silt.SiloSystem(Some(8090)), 10.seconds)) match {
+    val system = Await.result(fp.SiloSystem(Some(8090)), 10.seconds)
+    Try(Await.result(fp.SiloSystem(Some(8090)), 10.seconds)) match {
       case Success(s) =>
         Await.result(s.terminate(), 10.seconds)
         true shouldBe false 

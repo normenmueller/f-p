@@ -1,4 +1,4 @@
-package silt.samples
+package fp.samples
 package netty
 package sandbox
 
@@ -9,7 +9,7 @@ import scala.util.{ Success, Failure }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
-import silt.SiloSystem
+import fp.SiloSystem
 
 object SiloSystemServerMode extends AnyRef with App with Logging {
 

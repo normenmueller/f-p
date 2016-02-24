@@ -1,13 +1,13 @@
-package silt
+package fp
 package impl
 
 import scala.concurrent.Future
 
-trait SiloSystem extends silt.SiloSystem with silt.Internals {
+trait SiloSystem extends fp.SiloSystem with fp.Internals {
 
   /** Return an realization agnostic silo system running in server mode.
     *
-    * A silo system running in server mode has an underlying [[silt.impl.Server]]
+    * A silo system running in server mode has an underlying [[fp.impl.Server]]
     * to host silos and make those available to other silo systems.
     *
     * The underlying server is private to the silo system, i.e., only the silo
@@ -16,7 +16,7 @@ trait SiloSystem extends silt.SiloSystem with silt.Internals {
     *
     * @param at Target host
     */
-  def withServer(at: Host): Future[silt.SiloSystem]
+  def withServer(at: Host): Future[fp.SiloSystem]
 
 }
 

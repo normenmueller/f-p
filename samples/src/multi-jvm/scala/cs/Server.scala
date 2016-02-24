@@ -9,7 +9,7 @@ import scala.util.{ Success, Failure }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
-import silt._
+import fp._
 
 /** A silo system running in server mode can be understood as a ''slave'',
  *  ''worker'', ''workhorse'', or ''executor''. You name it! 

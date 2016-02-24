@@ -1,7 +1,7 @@
-package silt
+package fp
 package core
 
-import scala.pickling.{Pickler, Unpickler}
+import scala.pickling.{ Pickler, Unpickler }
 
 sealed abstract class Command
 

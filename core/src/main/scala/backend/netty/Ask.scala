@@ -1,21 +1,19 @@
-package silt
+package fp
 package impl
 package netty
 
-import scala.collection._
-import scala.concurrent.{ ExecutionContext, Future, Promise }
-import scala.pickling.Pickler
-import scala.util.{ Failure, Success }
-
 import _root_.io.netty.channel.Channel
+import model.{ ClientRequest, Response }
+
+import scala.collection._
+import scala.concurrent.{ Future, Promise }
+import scala.pickling.Pickler
 
 trait Ask {
 
-  import ExecutionContext.Implicits.global
-
   def promiseOf: mutable.Map[MsgId, Promise[Response]]
 
-  def ask[R <: silt.RSVP: Pickler](via: Channel, request: R): Future[Response] = {
+  def ask[R <: ClientRequest: Pickler](via: Channel, request: R): Future[Response] = {
     val promise = Promise[Response]
 
     promiseOf += (request.id -> promise)

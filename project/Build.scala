@@ -4,7 +4,7 @@ import Keys._
 import com.typesafe.sbt.SbtMultiJvm
 import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys.MultiJvm
 
-object FunctionPassingBuild extends Build with Mappings with Formatter {
+object Build extends Build with Mappings with Scalariform {
 
   val snapshotsRepo = Resolver.sonatypeRepo("snapshots")
 
@@ -14,8 +14,9 @@ object FunctionPassingBuild extends Build with Mappings with Formatter {
       "-deprecation",
       "-encoding", "UTF-8",
       "-feature",
-      "-unchecked"
-    ), 
+      "-unchecked",
+      "-Xlog-implicits"
+    ),
     resolvers ++= (if (version.value.endsWith("-SNAPSHOT")) List(snapshotsRepo) else Nil),
     parallelExecution in Global := false,
     unmanagedSourceDirectories in Compile <<= (scalaSource in Compile)(Seq(_)),
@@ -27,7 +28,7 @@ object FunctionPassingBuild extends Build with Mappings with Formatter {
     base = file("."),
     settings = standardSettings,
     aggregate = Seq(core, samples)
-  ) 
+  )
 
   val loggingDependencies = Seq(
     "com.typesafe.scala-logging" %% "scala-logging"   % "3.1.0",
@@ -37,15 +38,15 @@ object FunctionPassingBuild extends Build with Mappings with Formatter {
   lazy val core = Project(
     id = "core",
     base = file("core"),
-    settings = standardSettings ++ 
-      documentationSettings ++ 
-      formatSettings ++ 
+    settings = standardSettings ++
+      documentationSettings ++
+      formatSettings ++
       Seq(
         name := "f-p core",
         libraryDependencies ++= Seq(
           "org.scala-lang.modules"     %% "spores-core"     % "0.2.0",
           "org.scala-lang.modules"     %% "spores-pickling" % "0.2.0",
-          "org.scala-lang.modules"     %% "scala-pickling"  % "0.10.1", 
+          "org.scala-lang.modules"     %% "scala-pickling"  % "0.10.1",
 
           "io.netty"                    % "netty-all"       % "4.1.0.CR1",
           "org.javassist"               % "javassist"       % "3.20.0-GA",
@@ -58,22 +59,26 @@ object FunctionPassingBuild extends Build with Mappings with Formatter {
   lazy val samples = Project(
     id = "samples",
     base = file("samples"),
-    settings = standardSettings ++ 
-      documentationSettings ++ 
-      formatSettings ++ 
-      SbtMultiJvm.multiJvmSettings ++ 
+    settings = standardSettings ++
+      documentationSettings ++
+      formatSettings ++
+      SbtMultiJvm.multiJvmSettings ++
       Seq(
         name := "f-p samples",
-        scalaSource in Compile := baseDirectory.value / "src"/ "single-jvm" / "main" / "scala",
-        resourceDirectory in Compile := baseDirectory.value / "src"/ "single-jvm" / "main" / "resources",
-        scalaSource in Test := baseDirectory.value / "src"/ "single-jvm" / "test" / "scala",
-        resourceDirectory in Test := baseDirectory.value / "src"/ "single-jvm" / "test" / "resources",
+        scalaSource in Compile :=
+          baseDirectory.value / "src"/ "single-jvm" / "main" / "scala",
+        resourceDirectory in Compile :=
+          baseDirectory.value / "src"/ "single-jvm" / "main" / "resources",
+        scalaSource in Test :=
+          baseDirectory.value / "src"/ "single-jvm" / "test" / "scala",
+        resourceDirectory in Test :=
+          baseDirectory.value / "src"/ "single-jvm" / "test" / "resources",
         compile in MultiJvm <<= (compile in MultiJvm) triggeredBy (compile in Test),
         fork in run := true,
         parallelExecution in Test := false,
         libraryDependencies ++= loggingDependencies
       )
-  ) dependsOn(core) configs(MultiJvm) 
+  ) dependsOn(core) configs(MultiJvm)
 
 }
 

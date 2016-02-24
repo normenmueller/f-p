@@ -1,28 +1,31 @@
-package silt
+package fp
 package impl
 
 import java.util.concurrent.CancellationException
 
-import scala.concurrent.{ ExecutionContext, Promise, Future }
+import fp.model.Message
+import io.netty.channel._
+
+import scala.concurrent.{ Future, Promise }
 import scala.language.implicitConversions
 import scala.util.Try
 
-import io.netty.channel.{ ChannelFutureListener, EventLoopGroup }
-import io.netty.channel.{ Channel, ChannelHandlerContext, ChannelFuture }
-
 package object netty {
 
-  // F-P internal system message enriched by Netty-specific context
+  /** Wrapper around any message of the internal function-passing protocol that
+    * stores a [[ChannelHandlerContext]] to give further information to Netty.
+    *
+    * @param ctx Netty context
+    * @param msg Function-passing model
+    */
+  private[netty] final case class NettyWrapper(ctx: ChannelHandlerContext, msg: Message)
 
-  private[netty] final case class Message(ctx: ChannelHandlerContext, msg: silt.Message)
-
-  // Connection status
-
+  /** Describe a connection between two nodes in a given network. It can be
+    * either [[Connected]] or [[Disconnected]].
+    */
   private[netty] sealed abstract class Status
   private[netty] case class Connected(channel: Channel, worker: EventLoopGroup) extends Status
   private[netty] case object Disconnected extends Status
-
-  // Utilities
 
   implicit def nettyFutureToScalaFuture(future: ChannelFuture): Future[Channel] = {
     val p = Promise[Channel]()

@@ -1,4 +1,4 @@
-package silt
+package fp
 package core
 
 import scala.pickling._
@@ -14,6 +14,7 @@ trait Serializable[T] {
   * Mix in with [[Serializable]] so that the nodes can be sent
   * over the wire.
   */
+@directSubclasses(Array(classOf[Materialized]))
 sealed abstract class Node {
   def refId: RefId
 }

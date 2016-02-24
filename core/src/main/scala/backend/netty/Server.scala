@@ -1,30 +1,28 @@
-package silt
+package fp
 package impl
 package netty
 
+import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
+
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
-
-import java.util.concurrent.{ BlockingQueue, CountDownLatch, LinkedBlockingQueue }
-
-import scala.concurrent.{ ExecutionContext, Promise }
-import ExecutionContext.Implicits.{ global => executor }
-
 import io.netty.bootstrap.ServerBootstrap
-import io.netty.channel.socket.SocketChannel
 import io.netty.channel.nio.NioEventLoopGroup
+import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
+import io.netty.channel.{ ChannelHandler, ChannelHandlerContext, ChannelInitializer, SimpleChannelInboundHandler }
 import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
-import io.netty.channel.{ ChannelOption, SimpleChannelInboundHandler }
-import io.netty.channel.{ ChannelHandler, ChannelHandlerContext, ChannelInitializer }
+
+import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
+import scala.concurrent.Promise
 
 private[netty] trait Server extends AnyRef with impl.Server with Logging {
 
-  self: silt.SiloSystem =>
+  self: fp.SiloSystem =>
 
   import logger._
 
   /* Promise the server is up and running. */
-  protected def started: Promise[silt.SiloSystem]
+  protected def started: Promise[fp.SiloSystem]
 
   /* Netty server constituents */
   private val server = new ServerBootstrap
@@ -42,7 +40,7 @@ private[netty] trait Server extends AnyRef with impl.Server with Logging {
    * `receptor` : Worker for all incoming messages from all channels.
    * `forwarder`: Server handler forwarding system messages from Netty's event loop to `mq`
    */
-  private val mq = new LinkedBlockingQueue[netty.Message]()
+  private val mq = new LinkedBlockingQueue[NettyWrapper]()
   private val receptor = new Receptor(mq)
 
   /* Initialize a [[Netty http://goo.gl/0Z9pZM]]-based server.
@@ -78,10 +76,10 @@ private[netty] trait Server extends AnyRef with impl.Server with Logging {
    * [[io.netty.util.ReferenceCountUtil#release(Object)]].
    */
   @ChannelHandler.Sharable
-  private class ServerHandler() extends SimpleChannelInboundHandler[silt.Message] with Logging {
+  private class ServerHandler() extends SimpleChannelInboundHandler[model.Message] with Logging {
 
-    override def channelRead0(ctx: ChannelHandlerContext, msg: silt.Message): Unit =
-      mq add netty.Message(ctx, msg)
+    override def channelRead0(ctx: ChannelHandlerContext, msg: model.Message): Unit =
+      mq add NettyWrapper(ctx, msg)
 
     override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
       //cause.printStackTrace()

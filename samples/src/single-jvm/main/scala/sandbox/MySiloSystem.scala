@@ -4,7 +4,7 @@ import scala.concurrent.{ Await, Future }
 import scala.concurrent.duration._
 import scala.pickling._
 import scala.util.{ Success, Failure }
-import silt._
+import fp._
 
 /** Test silo system implementation requirements in case of one wants to
   * actually roll his own silo system.

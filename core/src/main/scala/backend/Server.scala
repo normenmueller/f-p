@@ -1,4 +1,4 @@
-package silt
+package fp
 package impl
 
 /** The internal API of a F-P server. */
@@ -17,4 +17,3 @@ private[impl] trait Server extends Runnable {
 
 }
 
-// vim: set tw=120 ft=scala:

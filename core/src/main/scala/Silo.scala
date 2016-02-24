@@ -1,4 +1,4 @@
-package silt
+package fp
 
 import scala.concurrent.Future
 
@@ -8,7 +8,7 @@ trait SiloFactory[T] {
 
 }
 
-class Silo[T](private[silt] val data: T) {
+class Silo[T](private[fp] val data: T) {
 
   //def internalApply[A, V, B <: Traversable[V]](fun: A => B): LocalSilo[V, B] = {
   //  val typedFun = fun.asInstanceOf[T => B]

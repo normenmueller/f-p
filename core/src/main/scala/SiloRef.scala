@@ -1,7 +1,8 @@
-package silt
+package fp
 
-import com.typesafe.scalalogging.{StrictLogging => Logging}
-import silt.core._
+import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import fp.core._
+import model.Populate
 
 import scala.concurrent.Future
 import scala.pickling._
@@ -14,11 +15,9 @@ trait SiloRefFactory {
   /** Upload a silo to `host` with the initialization process defined by `fun`.
     *
     * @tparam T Type of data to be populated
-    *
     * @param fun Silo initialization logic
     * @param at Target host of the the to be created silo
-    *
-    * @return [[silt.SiloRef]], which identifies the created silo
+    * @return [[fp.SiloRef]], which identifies the created silo
     */
   def populate[T](at: Host)(fun: () => Silo[T])(implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]]
 
@@ -26,15 +25,14 @@ trait SiloRefFactory {
     *
     * @param factory Silo initialization logic
     * @param at Target host where the `Silo` will be created
-    *
-    * @return [[silt.SiloRef]], which identifies the created silo
+    * @return [[fp.SiloRef]], which identifies the created silo
     */
   final def populate[T](at: Host, factory: SiloFactory[T])(implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] =
     populate(at) { () => new Silo[T](factory.data) }
 }
 
 /** A `Silo` is uniquely identified by an `id`. */
-private[silt] case class SiloRefId(id: RefId, at: Host)
+private[fp] case class SiloRefId(id: RefId, at: Host)
 
 /** Immutable and serializable handle to a silo.
   *
@@ -63,12 +61,12 @@ trait SiloRef[T] {
 abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
 
   import logger._
-  import silt.core._
+  import fp.core._
 
   import Defaults._
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  protected def system: silt.Internals
+  protected def system: fp.Internals
 
   protected def node: Node
 
@@ -85,8 +83,7 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
 
 }
 
-class MaterializedSilo[T](refId: RefId, at: Host)
-    (protected val system: silt.Internals) extends SiloRefAdapter[T] {
+class MaterializedSilo[T](refId: RefId, at: Host)(protected val system: fp.Internals) extends SiloRefAdapter[T] {
 
   override val id = SiloRefId(refId, at)
 

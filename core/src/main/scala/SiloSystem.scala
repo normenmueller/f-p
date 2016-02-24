@@ -1,8 +1,9 @@
-package silt
+package fp
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.typesafe.scalalogging.{StrictLogging => Logging}
+import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import fp.model.{ Populated, Response, Populate, ClientRequest }
 
 import scala.pickling.Pickler
 
@@ -23,10 +24,10 @@ object SiloSystem extends AnyRef with Logging {
     *
     *
     * The actual silo system implementation must be a subclass of
-    * [[silt.impl.SiloSystem]] with a default, empty constructor. The concrete
+    * [[fp.impl.SiloSystem]] with a default, empty constructor. The concrete
     * realization is specified by the system property `-Dsilo.system.impl=<class>`.
     * If no system property is given, the realization defaults to
-    * [[silt.impl.netty.SiloSystem]].
+    * [[fp.impl.netty.SiloSystem]].
     *
     * In both server and client mode, Netty is used to realize the network layer.
     *
@@ -35,7 +36,7 @@ object SiloSystem extends AnyRef with Logging {
   def apply(port: Option[Int] = None): Future[SiloSystem] = Future {
     val clazz = sys.props.getOrElse("silo.system.impl", "silt.impl.netty.SiloSystem")
     logger.info(s"Initializing silo system with `$clazz`")
-    Class.forName(clazz).newInstance().asInstanceOf[silt.impl.SiloSystem]
+    Class.forName(clazz).newInstance().asInstanceOf[fp.impl.SiloSystem]
   } flatMap { system =>
     port match {
       case None => Future.successful(system)
@@ -58,18 +59,15 @@ trait SiloSystem extends SiloRefFactory with Logging {
   def name: String
 
   /** Terminate the silo system.
-    *
-    * Blocking operation since it waits for all connections to be closed.
     */
   def terminate(): Future[Unit]
 
-  override def populate[T](at: Host)(fun: () => Silo[T])
-    (implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] = {
-      request(at) { msgId => Populate(msgId, fun) } map {
-        case Populated(_, ref) => new MaterializedSilo[T](ref, at)(self)
-        case _ => throw new Exception(s"Silo population at `$at` failed.")
-      }
+  override def populate[T](at: Host)(fun: () => Silo[T])(implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] = {
+    request(at) { msgId => Populate(msgId, fun) } map {
+      case Populated(_, ref) => new MaterializedSilo[T](ref, at)(self)
+      case _ => throw new Exception(s"Silo population at `$at` failed.")
     }
+  }
 
 }
 
@@ -78,11 +76,11 @@ trait SiloSystem extends SiloRefFactory with Logging {
   * These internal are implementation details to be hidden from the public API.
   * This class is meant to be an abstraction for different backends.
   */
-private[silt] trait Internals {
+private[fp] trait Internals {
 
-  def request[R <: silt.RSVP: Pickler](at: Host)(request: MsgId => R): Future[Response]
+  def request[R <: ClientRequest: Pickler](at: Host)(request: MsgId => R): Future[Response]
 
-  object MsgIdGenerator {
+  object MsgIdGen {
 
     private val ids = new AtomicInteger(10)
 

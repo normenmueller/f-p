@@ -2,7 +2,7 @@ import com.typesafe.sbt.SbtScalariform
 import scalariform.formatter.preferences._
 import com.typesafe.sbt.SbtScalariform.autoImport.scalariformPreferences
 
-trait Formatter {
+trait Scalariform {
 
   /* Follow [[http://docs.scala-lang.org/style/ Scala style guide]] */
   lazy val formatSettings = SbtScalariform.defaultScalariformSettings ++ Seq(
