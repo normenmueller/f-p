@@ -1,5 +1,5 @@
 package fp
-package impl
+package backend
 package netty
 
 import java.util.concurrent.{ BlockingQueue, CountDownLatch }

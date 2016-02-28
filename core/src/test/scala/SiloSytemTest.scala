@@ -15,7 +15,7 @@ class SiloSystemTest extends FlatSpec with Matchers {
   } 
 
   it should "use the default, Netty-based realization" in {
-    Await.ready(fp.SiloSystem(), 10.seconds) map { _ shouldBe a [fp.impl.SiloSystem] }
+    Await.ready(fp.SiloSystem(), 10.seconds) map { _ shouldBe a [fp.backend.SiloSystem] }
   } 
 
   it should "throw an exception in case of wrong `silo.system.impl` parameter" in {

@@ -1,5 +1,5 @@
 package fp
-package impl
+package backend
 
 import scala.concurrent.Future
 
@@ -7,7 +7,7 @@ trait SiloSystem extends fp.SiloSystem with fp.Internals {
 
   /** Return an realization agnostic silo system running in server mode.
     *
-    * A silo system running in server mode has an underlying [[fp.impl.Server]]
+    * A silo system running in server mode has an underlying [[fp.backend.Server]]
     * to host silos and make those available to other silo systems.
     *
     * The underlying server is private to the silo system, i.e., only the silo

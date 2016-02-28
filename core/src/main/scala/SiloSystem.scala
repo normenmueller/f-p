@@ -5,7 +5,9 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 import fp.model.{ Populated, Response, Populate, ClientRequest }
 
-import scala.pickling.Pickler
+import scala.pickling._
+import scala.pickling.binary._
+import Defaults._
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
@@ -24,10 +26,10 @@ object SiloSystem extends AnyRef with Logging {
     *
     *
     * The actual silo system implementation must be a subclass of
-    * [[fp.impl.SiloSystem]] with a default, empty constructor. The concrete
+    * [[fp.backend.SiloSystem]] with a default, empty constructor. The concrete
     * realization is specified by the system property `-Dsilo.system.impl=<class>`.
     * If no system property is given, the realization defaults to
-    * [[fp.impl.netty.SiloSystem]].
+    * [[fp.backend.netty.SiloSystem]].
     *
     * In both server and client mode, Netty is used to realize the network layer.
     *
@@ -36,7 +38,7 @@ object SiloSystem extends AnyRef with Logging {
   def apply(port: Option[Int] = None): Future[SiloSystem] = Future {
     val clazz = sys.props.getOrElse("silo.system.impl", "silt.impl.netty.SiloSystem")
     logger.info(s"Initializing silo system with `$clazz`")
-    Class.forName(clazz).newInstance().asInstanceOf[fp.impl.SiloSystem]
+    Class.forName(clazz).newInstance().asInstanceOf[fp.backend.SiloSystem]
   } flatMap { system =>
     port match {
       case None => Future.successful(system)

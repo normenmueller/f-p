@@ -1,5 +1,5 @@
 package fp
-package impl
+package backend
 package netty
 
 import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
@@ -15,7 +15,7 @@ import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 import scala.concurrent.Promise
 
-private[netty] trait Server extends AnyRef with impl.Server with Logging {
+private[netty] trait Server extends AnyRef with backend.Server with Logging {
 
   self: fp.SiloSystem =>
 

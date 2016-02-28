@@ -1,5 +1,5 @@
 package fp
-package impl
+package backend
 package netty
 
 import fp.model.{ Disconnect, Response, ClientRequest, Message }
@@ -13,7 +13,7 @@ import Defaults._
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 
 /** A Netty-based implementation of a silo system. */
-class SiloSystem extends AnyRef with impl.SiloSystem with Tell with Ask with Logging {
+class SiloSystem extends AnyRef with backend.SiloSystem with Tell with Ask with Logging {
 
   import logger._
 
