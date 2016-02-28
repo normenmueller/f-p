@@ -51,8 +51,8 @@ object Picklers {
     def pickleNode(picklee: Lineage, builder: PBuilder) = {
       val node = picklee.node
       val tag = node match {
-        case m: Materialized =>
-          implicitly[FastTypeTag[Materialized]]
+        case m: Materialize =>
+          implicitly[FastTypeTag[Materialize]]
 
         /*case a: Apply[U, T, V, S] =>
           rawFastTypeTag[Apply[U, T, V, S], Any](a)
@@ -80,8 +80,8 @@ object Picklers {
 
     override def pickle(picklee: Node, builder: PBuilder): Unit =
       picklee match {
-        case m: Materialized =>
-          implicitly[Pickler[Materialized]].pickle(m, builder)
+        case m: Materialize =>
+          implicitly[Pickler[Materialize]].pickle(m, builder)
       }
   }
 

@@ -26,7 +26,7 @@ package object netty {
    * either [[Connected]] or [[Disconnected]].
    */
   private[netty] sealed abstract class Status
-  private[netty] case class Connected(channel: Channel, worker: EventLoopGroup) extends Status
+  private[netty] final case class Connected(channel: Channel, worker: EventLoopGroup) extends Status
   private[netty] case object Disconnected extends Status
 
   implicit def nettyFutureToScalaFuture(future: ChannelFuture): Future[Channel] = {

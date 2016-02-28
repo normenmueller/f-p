@@ -2,20 +2,22 @@ package fp
 package backend
 package netty
 
-import fp.model.{ Disconnect, Response, ClientRequest, Message }
+import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import fp.model._
 
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.{ ExecutionContext, Future, Promise }
-import ExecutionContext.Implicits.{ global => executor }
-import scala.pickling._
-import Defaults._
-
-import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
+import scala.concurrent.{ Future, Promise }
+import scala.language.postfixOps
+import scala.pickling.Pickler
+import scala.util.Try
 
 /** A Netty-based implementation of a silo system. */
-class SiloSystem extends AnyRef with backend.SiloSystem with Tell with Ask with Logging {
+class SiloSystem extends AnyRef with backend.SiloSystem
+    with PicklingProtocol with Tell with Ask with Logging {
 
   import logger._
+  import picklingProtocol._
 
   override val name = java.util.UUID.randomUUID.toString
 
@@ -64,23 +66,30 @@ class SiloSystem extends AnyRef with backend.SiloSystem with Tell with Ask with 
     promise.future
   }
 
-  // ----
-
-  import scala.collection._
   import _root_.io.netty.bootstrap.Bootstrap
-  import _root_.io.netty.channel.{ Channel, ChannelHandler, ChannelHandlerContext }
-  import _root_.io.netty.channel.{ ChannelInitializer, ChannelOption, SimpleChannelInboundHandler }
   import _root_.io.netty.channel.nio.NioEventLoopGroup
   import _root_.io.netty.channel.socket.SocketChannel
   import _root_.io.netty.channel.socket.nio.NioSocketChannel
+  import _root_.io.netty.channel.{ Channel, ChannelHandler }
+  import _root_.io.netty.channel.{ ChannelHandlerContext, ChannelInitializer }
+  import _root_.io.netty.channel.{ ChannelOption, SimpleChannelInboundHandler }
   import _root_.io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
+
+  import scala.collection._
 
   private val statusOf: mutable.Map[Host, Status] = new TrieMap[Host, Status]
 
   private def connect(to: Host): Future[Channel] = statusOf.get(to) match {
-    case None => channel(to) map { status =>
-      statusOf += (to -> status)
-      status.channel
+    case None => channel(to) flatMap {
+      case ok: Connected =>
+        statusOf += (to -> ok)
+        Future.successful(ok.channel)
+      case Disconnected =>
+        /* TODO Think better alternative than reconnecting and
+         * TODO If no alternative, set a policy of n tries. */
+        info("Try to connect again after spurious exception...")
+        statusOf -= to
+        connect(to)
     }
     case Some(Disconnected) =>
       statusOf -= to
@@ -89,9 +98,9 @@ class SiloSystem extends AnyRef with backend.SiloSystem with Tell with Ask with 
       Future.successful(channel)
   }
 
-  private def channel(to: Host): Future[Connected] = {
+  private def channel(to: Host): Future[Status] = {
     val wrkr = new NioEventLoopGroup
-    try {
+    Try {
       val b = new Bootstrap
       b.group(wrkr)
         .channel(classOf[NioSocketChannel])
@@ -106,13 +115,18 @@ class SiloSystem extends AnyRef with backend.SiloSystem with Tell with Ask with 
         })
         .option(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
         .connect(to.address, to.port).map(Connected(_, wrkr))
-    } catch {
+    } recover {
       case t: Throwable =>
         wrkr.shutdownGracefully()
-        throw t
-    }
+        error("Exception caught when processing message in the pipeline", t)
+        Future.successful[Status](Disconnected)
+    } get
   }
 
+  /**
+   * Handle all the incoming [[Message]]s that come through the Netty pipeline
+   * and fulfilling an existing promise in case it matches the id of any message.
+   */
   @ChannelHandler.Sharable
   private class ClientHandler() extends SimpleChannelInboundHandler[Message] with Logging {
 
@@ -121,15 +135,14 @@ class SiloSystem extends AnyRef with backend.SiloSystem with Tell with Ask with 
     override def channelRead0(ctx: ChannelHandlerContext, msg: model.Message): Unit = {
       trace(s"Received message: $msg")
 
-      // response to request, so look up promise
       msg match {
-        case theMsg: Response => promiseOf(theMsg.id).success(theMsg)
-        case _ => /* do nothing */
+        case response: Response => promiseOf(response.id).success(response)
+        case _ => warn(s"A response id doesn't match an expected promise: $msg")
       }
     }
 
     override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
-      cause.printStackTrace()
+      error("Exception caught in the `ClientHandler`", cause)
       ctx.close()
     }
 

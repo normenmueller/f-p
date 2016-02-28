@@ -2,7 +2,7 @@ package fp
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 import fp.core._
-import fp.model.{ Traverse, Traversed }
+import fp.model.{ PicklingProtocol, Traverse, Traversed }
 
 import scala.concurrent.Future
 
@@ -34,16 +34,15 @@ trait SiloRef[T] {
 
 }
 
-abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
+abstract class SiloRefAdapter[T] extends SiloRef[T] with PicklingProtocol with Logging {
 
   import fp.core._
   import logger._
 
+  import picklingProtocol._
   import scala.concurrent.ExecutionContext.Implicits.global
-  import scala.pickling.Defaults._
 
   protected def system: fp.Internals
-
   protected def node: Node
 
   override def send(): Future[T] = {
@@ -61,7 +60,7 @@ class MaterializedSilo[T](refId: RefId, at: Host)(protected val system: Internal
 
   override val id = SiloRefId(refId, at)
 
-  override def node = Materialized(refId)
+  override def node = Materialize(refId)
 
 }
 
