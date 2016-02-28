@@ -2,15 +2,12 @@ package fp
 
 import java.util.concurrent.atomic.AtomicInteger
 
-import com.typesafe.scalalogging.{ StrictLogging => Logging }
-import fp.model.{ Populated, Response, Populate, ClientRequest }
-
-import scala.pickling._
-import scala.pickling.binary._
-import Defaults._
+import com.typesafe.scalalogging.{StrictLogging => Logging}
+import fp.model.{ClientRequest, Populate, Populated, Response}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+import scala.pickling._
 
 /** Provides a set of operations needed to create [[SiloSystem]]s. */
 object SiloSystem extends AnyRef with Logging {
@@ -64,7 +61,8 @@ trait SiloSystem extends SiloRefFactory with Logging {
     */
   def terminate(): Future[Unit]
 
-  override def populate[T](at: Host)(fun: () => Silo[T])(implicit pickler: Pickler[Populate[T]]): Future[SiloRef[T]] = {
+  override def populate[T](at: Host)(fun: () => Silo[T])
+                          (implicit p: Pickler[Populate[T]]): Future[SiloRef[T]] = {
     request(at) { msgId => Populate(msgId, fun) } map {
       case Populated(_, ref) => new MaterializedSilo[T](ref, at)(self)
       case _ => throw new Exception(s"Silo population at `$at` failed.")

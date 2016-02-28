@@ -7,13 +7,14 @@ import ch.qos.logback.classic.pattern._
 
 // Note: Adopted from `play.api.Logger$ColoredLevel.`
 
-/** Logback converter generating colored, lower-case level names.
-  *
-  * Used for example as:
-  * {{{
-  * %coloredLevel %logger{15} - %message%n%xException{5}
-  * }}}
-  */
+/**
+ * Logback converter generating colored, lower-case level names.
+ *
+ * Used for example as:
+ * {{{
+ * %coloredLevel %logger{15} - %message%n%xException{5}
+ * }}}
+ */
 class ColoredLoggerLevel extends ClassicConverter {
 
   override def convert(event: ILoggingEvent): String = event.getLevel match {

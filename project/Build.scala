@@ -4,7 +4,7 @@ import Keys._
 import com.typesafe.sbt.SbtMultiJvm
 import com.typesafe.sbt.SbtMultiJvm.MultiJvmKeys.MultiJvm
 
-object Build extends Build with Mappings with Scalariform {
+object Build extends Build with Mappings {
 
   val snapshotsRepo = Resolver.sonatypeRepo("snapshots")
 
@@ -40,7 +40,6 @@ object Build extends Build with Mappings with Scalariform {
     base = file("core"),
     settings = standardSettings ++
       documentationSettings ++
-      formatSettings ++
       Seq(
         name := "f-p core",
         libraryDependencies ++= Seq(
@@ -61,7 +60,6 @@ object Build extends Build with Mappings with Scalariform {
     base = file("samples"),
     settings = standardSettings ++
       documentationSettings ++
-      formatSettings ++
       SbtMultiJvm.multiJvmSettings ++
       Seq(
         name := "f-p samples",

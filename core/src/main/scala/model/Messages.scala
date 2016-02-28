@@ -8,9 +8,10 @@ sealed trait Identifiable {
   val id: MsgId
 }
 
-/** A message is any packet of information exchanged among the nodes of
-  * a network that complies with the function-passing protocol.
-  */
+/**
+ * A message is any packet of information exchanged among the nodes of
+ * a network that complies with the function-passing protocol.
+ */
 @directSubclasses(Array(classOf[Request], classOf[Response]))
 sealed abstract class Message
 
@@ -19,9 +20,10 @@ sealed abstract class Request extends Message
 case object Disconnect extends Request
 case object Terminate extends Request
 
-/** [[RVSP]] is the short for "Respondez s'il vous plaît", which means that
-  * the sender is expecting a response from the recipient.
-  */
+/**
+ * [[RVSP]] is the short for "Respondez s'il vous plaît", which means that
+ * the sender is expecting a response from the recipient.
+ */
 sealed trait RVSP
 
 @directSubclasses(Array(classOf[Populate[_]], classOf[Traverse]))

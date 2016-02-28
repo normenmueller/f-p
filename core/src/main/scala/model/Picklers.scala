@@ -17,9 +17,10 @@ trait Tagged[T] {
 }
 
 trait Helpers {
-  /** Used when we need to pickle a type whose type parameters
-    * will be erased by the JVM because of the type erasure.
-    */
+  /**
+   * Used when we need to pickle a type whose type parameters
+   * will be erased by the JVM because of the type erasure.
+   */
   def rawFastTypeTag[T](v: T): FastTypeTag[Any] =
     FastTypeTag.mkRaw(v.getClass, runtime.currentMirror)
       .asInstanceOf[FastTypeTag[Any]]
@@ -67,9 +68,10 @@ object Picklers {
 
   }
 
-  /** Overrides [[Writer]] so that it uses the specialized reader for
-    * the concrete [[Node]] that we want to pickle/unpickle.
-    */
+  /**
+   * Overrides [[Writer]] so that it uses the specialized reader for
+   * the concrete [[Node]] that we want to pickle/unpickle.
+   */
   implicit object NodeWriter extends Writer[Node] {
 
     def tag: FastTypeTag[Node] = implicitly[FastTypeTag[Node]]

@@ -2,6 +2,9 @@ import com.typesafe.sbt.SbtScalariform
 import scalariform.formatter.preferences._
 import com.typesafe.sbt.SbtScalariform.autoImport.scalariformPreferences
 
+/* The scalariform formatter has been disabled temporarily and it may be used
+ * in the future if more features are added and a more granular control is
+ * allowed through its preferences. To enable again, add settings to the projects. */
 trait Scalariform {
 
   /* Follow [[http://docs.scala-lang.org/style/ Scala style guide]] */

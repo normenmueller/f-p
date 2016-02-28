@@ -9,11 +9,12 @@ trait Serializable[T] {
   def unpickler: Unpickler[T]
 }
 
-/** A node in the computation graph.
-  *
-  * Mix in with [[Serializable]] so that the nodes can be sent
-  * over the wire.
-  */
+/**
+ * A node in the computation graph.
+ *
+ * Mix in with [[Serializable]] so that the nodes can be sent
+ * over the wire.
+ */
 @directSubclasses(Array(classOf[Materialized]))
 sealed abstract class Node {
   def refId: RefId
@@ -40,8 +41,9 @@ final case class PumpNodeInput[U, V, R, P](
 ) extends Node with Serializable[P]
 */
 
-/** Directed Acyclic Graph (DAG) that represents several transformation over
-  * some data stored in a [[Silo]]. This is known as the [[Lineage]] which is
-  * sent to other [[Host]]s to model computations from the initial data
-  */
+/**
+ * Directed Acyclic Graph (DAG) that represents several transformation over
+ * some data stored in a [[Silo]]. This is known as the [[Lineage]] which is
+ * sent to other [[Host]]s to model computations from the initial data
+ */
 final case class Lineage(node: Node)
