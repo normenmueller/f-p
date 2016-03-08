@@ -41,12 +41,12 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with PicklingProtocol with L
   import picklingProtocol._
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  protected def backend: BackendLogic
+  protected def system: SiloSystem
   protected def node: Node
 
   override def send: Future[T] = {
     debug(s"Sending graph to host `${id.at}`...")
-    backend.request(id.at) { msgId => Traverse(msgId, node) } map {
+    system.request(id.at) { msgId => Traverse(msgId, node) } map {
       case Traversed(_, v) => v.asInstanceOf[T]
       case _ => throw new Exception(s"Computation at `${id.at}` failed.")
     }
@@ -54,7 +54,7 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with PicklingProtocol with L
 
 }
 
-class MaterializedSilo[T](refId: RefId, at: Host)(protected val backend: BackendLogic)
+class MaterializedSilo[T](refId: RefId, at: Host)(protected val system: SiloSystem)
     extends SiloRefAdapter[T] {
 
   override val id = SiloRefId(refId, at)

@@ -42,13 +42,10 @@ object SiloSystem extends Logging {
       case Some(portNumber) => system withServer Host("127.0.0.1", portNumber)
     }
   }
-
 }
 
 /** Logical entry point to a collection of [[Silo]]s -- a Silo manager. */
 trait SiloSystem extends SiloRefFactory with Logging {
-
-  self: BackendLogic =>
 
   /** Name identifying a given silo system.
     *
@@ -60,24 +57,21 @@ trait SiloSystem extends SiloRefFactory with Logging {
   /** Terminate the silo system. */
   def terminate(): Future[Unit]
 
-  override def populate[S, T <: Traversable[S]](at: Host, sf: SiloFactory[S, T])
-    (implicit p: Pickler[Populate[S, T]]): Future[SiloRef[T]] = {
-      request(at) { msgId => Populate(msgId, sf.f) } map {
-        case Populated(_, ref) => new MaterializedSilo[T](ref, at)(self)
-        case _ => throw new Exception(s"Silo population at `$at` failed.")
-      }
-    }
-
-}
-
-/** Represents the internals of a [[SiloSystem]] for a given backend.
-  *
-  * These internal are implementation details to be hidden from the public API.
-  * This class is meant to be an abstraction for different backends.
-  */
-private[fp] trait BackendLogic {
-
   def request[R <: ClientRequest: Pickler](at: Host)(request: MsgId => R): Future[Response]
+
+  /**
+   * Return an realization agnostic silo system running in server mode.
+   *
+   * A silo system running in server mode has an underlying [[fp.backend.Server]]
+   * to host silos and make those available to other silo systems.
+   *
+   * The underlying server is private to the silo system, i.e., only the silo
+   * system itself directly communicates with the server. A user/client only
+   * directly communicates with a silo system as such.
+   *
+   * @param at Target host
+   */
+  def withServer(at: Host): Future[fp.SiloSystem]
 
   object MsgIdGen {
     private lazy val ids = new AtomicInteger(10)
@@ -85,4 +79,5 @@ private[fp] trait BackendLogic {
   }
 
 }
+
 

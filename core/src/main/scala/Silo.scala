@@ -1,5 +1,9 @@
 package fp
 
+import fp.model.{Populated, Populate, PicklingProtocol}
+
+import scala.spores._
+import scala.concurrent.Future
 import scala.language.implicitConversions
 
 /** Container of some data stored in a node.
@@ -16,7 +20,18 @@ private[fp] class Silo[S, T <: Traversable[S]](private[fp] val data: T)
 /** [[Silo]]s can only be created through a [[SiloFactory]],
   * which are used to generate [[Silo]]s on a concrete host node.
   */
-class SiloFactory[S, T <: Traversable[S]] private[fp] (val f: () => Silo[S, T])
+class SiloFactory[S, T <: Traversable[S]] private[fp] (val s: Spore[Unit, Silo[S, T]])
+  extends PicklingProtocol {
+
+  import picklingProtocol._
+
+  def populateAt(at: Host)(implicit system: SiloSystem): Future[SiloRef[T]] =
+    system.request(at) { msgId => Populate(msgId, s) } map {
+      case Populated(_, ref) => new MaterializedSilo[T](ref, at)(system)
+      case _ => throw new Exception(s"Silo population at `$at` failed.")
+    }
+
+}
 
 object SiloFactory extends SiloFactoryHelpers {
 
@@ -31,16 +46,21 @@ object SiloFactory extends SiloFactoryHelpers {
     * and there's a type conflict (same type after erasure).
     * Possible solution: magnet pattern.
     */
-  def apply[S, T <: Traversable[S]](dataGen: () => T): SiloFactory[S, T] =
-    fromFunctionToSiloFactory(dataGen)
+  def apply[S, T <: Traversable[S]]
+  (dataGen: () => T): SiloFactory[S, T] =
+      fromFunctionToSiloFactory(dataGen)
 
 }
 
 trait SiloFactoryHelpers {
 
   private final def siloGenerator[S, T <: Traversable[S]]
-    (f: () => T): () => Silo[S, T] =
-      () => new Silo(f())
+    (f: () => T): Spore[Unit, Silo[S, T]] = {
+      spore[Unit, Silo[S,T]] {
+        val gen = f
+        Unit => new Silo[S,T](gen())
+      }
+    }
 
   /** Converts a function that returns a collection to a [[SiloFactory]].
     *

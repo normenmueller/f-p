@@ -2,6 +2,8 @@ package fp
 package model
 
 import fp.core.Node
+
+import scala.spores._
 import scala.pickling.directSubclasses
 
 sealed trait Identifiable {
@@ -27,7 +29,7 @@ sealed trait RVSP
 @directSubclasses(Array(classOf[Populate[_, _]], classOf[Traverse]))
 sealed abstract class ClientRequest extends Request with Identifiable
 
-case class Populate[S, T <: Traversable[S]](id: MsgId, gen: () => Silo[S, T])
+case class Populate[S, T <: Traversable[S]](id: MsgId, gen: Spore[Unit,Silo[S, T]])
   extends ClientRequest with RVSP
 
 case class Traverse(id: MsgId, node: Node)
