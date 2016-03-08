@@ -9,21 +9,20 @@ import scala.concurrent.Future
 /** A `Silo` is uniquely identified by an `id`. */
 private[fp] case class SiloRefId(id: RefId, at: Host)
 
-/**
- * Immutable and serializable handle to a silo.
- *
- * The referenced silo may or may not reside on the local host or inside
- * the same silo system. A [[SiloRef]] can be obtained from [[SiloRefFactory]],
- * an interface which is implemented by [[SiloSystem]].
- *
- * @tparam T Type of data populated in the `Silo`
- */
+/** Immutable and serializable handle to a silo.
+  *
+  * The referenced silo may or may not reside on the local host or inside
+  * the same silo system. A [[SiloRef]] can be obtained from [[SiloRefFactory]],
+  * an interface which is implemented by [[SiloSystem]].
+  *
+  * @tparam T Type of data populated in the `Silo`
+  */
 trait SiloRef[T] {
 
   def id: SiloRefId
 
-  /** Build graph and send graph to node which contains `this` Silo */
-  def send(): Future[T]
+  /** Build graph and send it to the node that stores the referenced [[Silo]] */
+  def send: Future[T]
 
   final override def hashCode: Int = id.hashCode
 
@@ -42,12 +41,12 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with PicklingProtocol with L
   import picklingProtocol._
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  protected def system: fp.Internals
+  protected def backend: BackendLogic
   protected def node: Node
 
-  override def send(): Future[T] = {
+  override def send: Future[T] = {
     debug(s"Sending graph to host `${id.at}`...")
-    system.request(id.at) { msgId => Traverse(msgId, node) } map {
+    backend.request(id.at) { msgId => Traverse(msgId, node) } map {
       case Traversed(_, v) => v.asInstanceOf[T]
       case _ => throw new Exception(s"Computation at `${id.at}` failed.")
     }
@@ -55,11 +54,10 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with PicklingProtocol with L
 
 }
 
-class MaterializedSilo[T](refId: RefId, at: Host)(protected val system: Internals)
+class MaterializedSilo[T](refId: RefId, at: Host)(protected val backend: BackendLogic)
     extends SiloRefAdapter[T] {
 
   override val id = SiloRefId(refId, at)
-
   override def node = Materialize(refId)
 
 }

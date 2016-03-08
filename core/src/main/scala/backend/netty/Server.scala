@@ -15,7 +15,7 @@ import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 import scala.concurrent.Promise
 
-private[netty] trait Server extends AnyRef with backend.Server with Logging {
+private[netty] trait Server extends backend.Server with Logging {
 
   self: fp.SiloSystem =>
 
@@ -89,7 +89,7 @@ private[netty] trait Server extends AnyRef with backend.Server with Logging {
       //     with a raw text message --- recall only a
       //     silo sytem can create system messages due to `Id` --- additional
       //     encoder/ decoder are required.
-      val msg = s"${cause.getClass().getSimpleName()}: ${cause.getMessage()}"
+      val msg = s"${cause.getClass.getSimpleName}: ${cause.getMessage}"
       logger.error(msg)
       ctx.close()
 
@@ -102,10 +102,7 @@ private[netty] trait Server extends AnyRef with backend.Server with Logging {
 
   }
 
-  /* Start server.
-   *
-   * Start server and bind server to accept incoming connections at port `at.port`
-   */
+  /** Start and bind server to accept incoming connections at port `at.port` */
   override def start(): Unit = try {
     trace("Server start...")
 
@@ -116,16 +113,18 @@ private[netty] trait Server extends AnyRef with backend.Server with Logging {
     trace("Server start done.")
     info(s"Server listining at port ${at.port}.")
 
-    (new Thread { override def run(): Unit = latch.await() }).start()
+    new Thread {
+      override def run(): Unit = latch.await()
+    }.start()
   } catch { case e: Throwable => started failure e }
 
-  /* Stop server.
-   *
-   * In Nety 4.0, you can just call `shutdownGracefully` on the
-   * `EventLoopGroup` that manages all your channels. Then all ''existing
-   * channels will be closed automatically'' and reconnection attempts should
-   * be rejected.
-   */
+  /** Stop server.
+    *
+    * In Netty 4.0, you can just call `shutdownGracefully` on the
+    * `EventLoopGroup` that manages all your channels. Then all ''existing
+    * channels will be closed automatically'' and reconnection attempts should
+    * be rejected.
+    */
   override def stop(): Unit = {
     trace("Server stop...")
 

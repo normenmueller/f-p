@@ -3,7 +3,7 @@ package backend
 
 import scala.concurrent.Future
 
-trait SiloSystem extends fp.SiloSystem with fp.Internals {
+trait SiloSystem extends fp.SiloSystem with fp.BackendLogic {
 
   /**
    * Return an realization agnostic silo system running in server mode.

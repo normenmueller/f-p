@@ -12,8 +12,17 @@ import scala.language.postfixOps
 import scala.pickling.Pickler
 import scala.util.Try
 
+import io.netty.bootstrap.Bootstrap
+import io.netty.channel.nio.NioEventLoopGroup
+import io.netty.channel.socket.SocketChannel
+import io.netty.channel.socket.nio.NioSocketChannel
+import io.netty.channel.{ Channel, ChannelHandler }
+import io.netty.channel.{ ChannelHandlerContext, ChannelInitializer }
+import io.netty.channel.{ ChannelOption, SimpleChannelInboundHandler }
+import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
+
 /** A Netty-based implementation of a silo system. */
-class SiloSystem extends AnyRef with backend.SiloSystem
+class SiloSystem extends backend.SiloSystem
     with PicklingProtocol with Tell with Ask with Logging {
 
   import logger._
@@ -23,8 +32,9 @@ class SiloSystem extends AnyRef with backend.SiloSystem
 
   override val promiseOf = new TrieMap[MsgId, Promise[Response]]
 
-  override def request[R <: ClientRequest: Pickler](at: Host)(request: MsgId => R): Future[Response] =
-    connect(at) flatMap { via => ask(via, request(MsgIdGen.next)) }
+  override def request[R <: ClientRequest: Pickler]
+    (at: Host)(request: MsgId => R): Future[Response] =
+      connect(at) flatMap { via => ask(via, request(MsgIdGen.next)) }
 
   override def withServer(host: Host): Future[fp.SiloSystem] = {
     val promise = Promise[fp.SiloSystem]
@@ -66,14 +76,6 @@ class SiloSystem extends AnyRef with backend.SiloSystem
     promise.future
   }
 
-  import _root_.io.netty.bootstrap.Bootstrap
-  import _root_.io.netty.channel.nio.NioEventLoopGroup
-  import _root_.io.netty.channel.socket.SocketChannel
-  import _root_.io.netty.channel.socket.nio.NioSocketChannel
-  import _root_.io.netty.channel.{ Channel, ChannelHandler }
-  import _root_.io.netty.channel.{ ChannelHandlerContext, ChannelInitializer }
-  import _root_.io.netty.channel.{ ChannelOption, SimpleChannelInboundHandler }
-  import _root_.io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
   import scala.collection._
 
