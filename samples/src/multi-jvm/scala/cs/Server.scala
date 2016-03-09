@@ -1,6 +1,8 @@
 package multijvm
 package cs
 
+import backend.SiloSystem
+
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
 import ExecutionContext.Implicits.global

@@ -4,6 +4,7 @@ package netty
 
 import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
 
+import backend.SiloSystem
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.nio.NioEventLoopGroup
@@ -17,12 +18,12 @@ import scala.concurrent.Promise
 
 private[netty] trait Server extends backend.Server with Logging {
 
-  self: fp.SiloSystem =>
+  self: SiloSystem =>
 
   import logger._
 
   /* Promise the server is up and running. */
-  protected def started: Promise[fp.SiloSystem]
+  protected def started: Promise[SiloSystem]
 
   /* Netty server constituents */
   private val server = new ServerBootstrap

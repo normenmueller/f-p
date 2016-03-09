@@ -1,8 +1,9 @@
 package fp
 
-import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import com.typesafe.scalalogging.{StrictLogging => Logging}
+import fp.backend.SiloSystem
 import fp.core._
-import fp.model.{ PicklingProtocol, Traverse, Traversed }
+import fp.model.{PicklingProtocol, Traverse, Traversed}
 
 import scala.concurrent.Future
 
@@ -12,7 +13,7 @@ private[fp] case class SiloRefId(id: RefId, at: Host)
 /** Immutable and serializable handle to a silo.
   *
   * The referenced silo may or may not reside on the local host or inside
-  * the same silo system. A [[SiloRef]] can be obtained from [[SiloRefFactory]],
+  * the same silo system. A [[SiloRef]] can be obtained from [[]],
   * an interface which is implemented by [[SiloSystem]].
   *
   * @tparam T Type of data populated in the `Silo`
@@ -37,8 +38,8 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with PicklingProtocol with L
 
   import fp.core._
   import logger._
-
   import picklingProtocol._
+
   import scala.concurrent.ExecutionContext.Implicits.global
 
   protected def system: SiloSystem

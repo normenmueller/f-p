@@ -36,18 +36,6 @@ class SiloSystem extends backend.SiloSystem
     (at: Host)(request: MsgId => R): Future[Response] =
       connect(at) flatMap { via => ask(via, request(MsgIdGen.next)) }
 
-  override def withServer(host: Host): Future[fp.SiloSystem] = {
-    val promise = Promise[fp.SiloSystem]
-
-    executor execute new SiloSystem with Server {
-      override val at = host
-      override val name = host.toString
-      override val started = promise
-    }
-
-    promise.future
-  }
-
   override def terminate(): Future[Unit] = {
     val promise = Promise[Unit]
 
@@ -148,6 +136,45 @@ class SiloSystem extends backend.SiloSystem
       ctx.close()
     }
 
+  }
+
+}
+
+/** Provides a set of operations needed to create [[SiloSystem]]s. */
+object SiloSystem extends SiloSystemCompanion {
+
+  /** Return a [[SiloSystem]] running in server mode if port is not [[None]].
+    * Otherwise, return a [[SiloSystem]] in client mode.
+    *
+    * @param port Port number
+    */
+  def apply(port: Option[Int] = None): Future[SiloSystem] = {
+    port match {
+      case Some(portNumber) =>
+        apply(Host("127.0.0.1", portNumber))
+      case None => Future.successful(new SiloSystem)
+    }
+  }
+
+  /** Return a server-based silo system.
+    *
+    * A silo system running in server mode has an underlying [[fp.backend.Server]]
+    * to host silos and make those available to other silo systems.
+    *
+    * The underlying server is private to the silo system, i.e., only the silo
+    * system itself directly communicates with the server. A user/client only
+    * directly communicates with such a silo system.
+    *
+    * @param host Host where the server will be booted up
+    */
+  def apply(host: Host): Future[SiloSystem] = {
+    val promise = Promise[SiloSystem]
+    val withServer = new SiloSystem with Server {
+      override val at = host
+      override val name = host.toString
+      override val started = promise
+    }
+    promise.future
   }
 
 }

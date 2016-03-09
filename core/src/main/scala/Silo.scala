@@ -1,10 +1,11 @@
 package fp
 
-import fp.model.{Populated, Populate, PicklingProtocol}
+import fp.backend.SiloSystem
+import fp.model.{PicklingProtocol, Populate, Populated}
 
-import scala.spores._
 import scala.concurrent.Future
 import scala.language.implicitConversions
+import scala.spores._
 
 /** Container of some data stored in a node.
   *
@@ -23,13 +24,17 @@ private[fp] class Silo[S, T <: Traversable[S]](private[fp] val data: T)
 class SiloFactory[S, T <: Traversable[S]] private[fp] (val s: Spore[Unit, Silo[S, T]])
   extends PicklingProtocol {
 
-  import picklingProtocol._
+  import scala.concurrent.ExecutionContext.Implicits.global
+  //
+  //import picklingProtocol._
+  import scala.pickling.Defaults._
 
-  def populateAt(at: Host)(implicit system: SiloSystem): Future[SiloRef[T]] =
+  def populateAt(at: Host)(implicit system: SiloSystem): Future[SiloRef[T]] = {
     system.request(at) { msgId => Populate(msgId, s) } map {
       case Populated(_, ref) => new MaterializedSilo[T](ref, at)(system)
       case _ => throw new Exception(s"Silo population at `$at` failed.")
     }
+  }
 
 }
 
@@ -71,7 +76,7 @@ trait SiloFactoryHelpers {
     (f: () => T): SiloFactory[S, T] =
       new SiloFactory(siloGenerator(f))
 
-  /** Directly Converts a collection to a [[SiloFactory]].
+  /** Directly converts a collection to a [[SiloFactory]].
     *
     * This is useful to avoid the user to explicitly create a new instance of
     * [[SiloFactory]] to wrap such a collection. Syntactic sugar for the API.
@@ -81,5 +86,4 @@ trait SiloFactoryHelpers {
       new SiloFactory(siloGenerator(() => p))
 
 }
-
 

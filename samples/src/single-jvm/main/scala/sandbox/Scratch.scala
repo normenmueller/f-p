@@ -2,14 +2,13 @@ package fp.samples
 package netty
 package sandbox
 
-import scala.concurrent.{ Await, Future }
-import scala.concurrent.duration._
+import com.typesafe.scalalogging.{StrictLogging => Logging}
+import fp.backend.netty.SiloSystem
+
+import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{ Success, Failure }
-
-import com.typesafe.scalalogging.{ StrictLogging => Logging }
-
-import fp.SiloSystem
+import scala.concurrent.duration._
+import scala.util.{Failure, Success}
 
 object SiloSystemServerMode extends AnyRef with App with Logging {
 
@@ -74,9 +73,9 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
           sys.exit(1)
       }
 
-    case Failure(error) => logger.error(s"Could not start silo system in server mode:\n ${error.getMessage}")
+    case Failure(error) =>
+      logger.error(s"Could not start silo system in server mode:\n ${error.getMessage}")
   }
 
 }
 
-// vim: set tw=80 ft=scala:

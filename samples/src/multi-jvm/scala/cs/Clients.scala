@@ -1,6 +1,7 @@
 package multijvm
 package cs
 
+import backend.SiloSystem
 import com.typesafe.scalalogging.{StrictLogging => Logging}
 import fp._
 
