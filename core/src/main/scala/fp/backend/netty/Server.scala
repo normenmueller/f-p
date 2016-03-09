@@ -5,6 +5,7 @@ package netty
 import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import fp.model.Message
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
@@ -41,7 +42,7 @@ private[netty] trait Server extends backend.Server with Logging {
    * `forwarder`: Server handler forwarding system messages from Netty's event loop to `mq`
    */
   private val mq = new LinkedBlockingQueue[NettyWrapper]()
-  private val receptor = new Receptor(mq)
+  private val receptor = new Receptor(mq)(ec)
 
   /* Initialize a [[Netty http://goo.gl/0Z9pZM]]-based server.
    *
@@ -76,9 +77,9 @@ private[netty] trait Server extends backend.Server with Logging {
    * [[io.netty.util.ReferenceCountUtil#release(Object)]].
    */
   @ChannelHandler.Sharable
-  private class ServerHandler() extends SimpleChannelInboundHandler[model.Message] with Logging {
+  private class ServerHandler() extends SimpleChannelInboundHandler[Message] with Logging {
 
-    override def channelRead0(ctx: ChannelHandlerContext, msg: model.Message): Unit =
+    override def channelRead0(ctx: ChannelHandlerContext, msg: Message): Unit =
       mq add NettyWrapper(ctx, msg)
 
     override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {

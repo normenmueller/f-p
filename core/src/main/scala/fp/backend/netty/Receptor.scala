@@ -8,14 +8,15 @@ import com.typesafe.scalalogging.{StrictLogging => Logging}
 import fp.model.{Populate, Populated}
 import fp.util.AsyncExecution
 
+import scala.concurrent.ExecutionContext
 import scala.pickling.Defaults._
 
 private[netty] class Receptor(mq: BlockingQueue[NettyWrapper])
-    extends Runnable with Helper with AsyncExecution with Logging {
+                             (implicit val ec: ExecutionContext)
+  extends Runnable with Helper with AsyncExecution with Logging {
 
   import logger._
 
-  override implicit val ec = scala.concurrent.ExecutionContext.global
   private val latch = new CountDownLatch(1)
 
   def start(): Unit = {
