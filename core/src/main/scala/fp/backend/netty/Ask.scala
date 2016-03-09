@@ -2,7 +2,7 @@ package fp
 package backend
 package netty
 
-import _root_.io.netty.channel.Channel
+import io.netty.channel.Channel
 import model.{ ClientRequest, Response }
 
 import scala.collection._

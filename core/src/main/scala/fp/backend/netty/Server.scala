@@ -4,7 +4,6 @@ package netty
 
 import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
 
-import backend.SiloSystem
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.nio.NioEventLoopGroup
