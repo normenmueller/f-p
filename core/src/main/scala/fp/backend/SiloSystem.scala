@@ -5,15 +5,14 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import com.typesafe.scalalogging.{StrictLogging => Logging}
 import fp.model.{ClientRequest, Response}
+import fp.util.AsyncExecution
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 import scala.pickling._
 
 
 /** Logical entry point to a collection of [[Silo]]s -- a Silo manager. */
-trait SiloSystem extends Logging {
-
-  implicit val ec: ExecutionContext
+trait SiloSystem extends AsyncExecution with Logging {
 
   /** Name identifying a given silo system.
     *

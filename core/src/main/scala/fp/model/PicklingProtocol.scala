@@ -11,7 +11,7 @@ trait PicklingProtocol {
   val picklingProtocol = {
     import scala.pickling._
     new Ops with pickler.AllPicklers // This simulates Default._
-    with pickler.RefPicklers with binary.BinaryFormats {
+      with pickler.RefPicklers with binary.BinaryFormats {
       implicit val so = static.StaticOnly
     }
   }

@@ -24,8 +24,8 @@ private[fp] class Silo[S, T <: Traversable[S]](private[fp] val data: T)
 class SiloFactory[S, T <: Traversable[S]] private[fp] (val s: Spore[Unit, Silo[S, T]])
   extends PicklingProtocol {
 
-  //import picklingProtocol._
-  import scala.pickling.Defaults._
+  import picklingProtocol._
+  import scala.spores.SporePickler._
 
   def populateAt(at: Host)(implicit system: SiloSystem,
                            ec: ExecutionContext): Future[SiloRef[T]] = {
