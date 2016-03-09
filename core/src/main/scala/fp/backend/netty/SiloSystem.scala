@@ -4,10 +4,11 @@ package netty
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
 import fp.model._
+import fp.util.AsyncExecution
 
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
-import scala.concurrent.{ Future, Promise }
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.pickling.Pickler
 import scala.util.Try
@@ -22,8 +23,8 @@ import io.netty.channel.{ ChannelOption, SimpleChannelInboundHandler }
 import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
 /** A Netty-based implementation of a silo system. */
-class SiloSystem extends backend.SiloSystem
-    with PicklingProtocol with Tell with Ask with Logging {
+class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
+    with PicklingProtocol with Ask with Helper with AsyncExecution with Logging {
 
   import logger._
   import picklingProtocol._
@@ -148,7 +149,7 @@ object SiloSystem extends SiloSystemCompanion {
     *
     * @param port Port number
     */
-  def apply(port: Option[Int] = None): Future[SiloSystem] = {
+  override def apply(port: Option[Int] = None): Future[SiloSystem] = {
     port match {
       case Some(portNumber) =>
         apply(Host("127.0.0.1", portNumber))

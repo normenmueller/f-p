@@ -6,12 +6,14 @@ import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.{StrictLogging => Logging}
 import fp.model.{ClientRequest, Response}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.pickling._
 
 
 /** Logical entry point to a collection of [[Silo]]s -- a Silo manager. */
 trait SiloSystem extends Logging {
+
+  implicit val ec: ExecutionContext
 
   /** Name identifying a given silo system.
     *
@@ -40,26 +42,24 @@ trait SiloSystem extends Logging {
   */
 trait SiloSystemCompanion extends Logging {
 
-  /** Instantiate a silo system.
+  /** Return a [[SiloSystem]] running in server mode if port is not [[None]].
+    * Otherwise, return a [[SiloSystem]] in client mode.
     *
-    * If `port` is `None`, the silo system runs in server mode.
-    * Otherwise, the silo system runs in client mode.
-    *
-    * In Server mode, the silo system is extended by an underlying server
-    * located at `localhost` listening at `port`. The underlying server
-    * is required to host silos and make them available to other silo systems.
-    *
-    *
-    * The actual silo system implementation must be a subclass of
-    * [[fp.backend.SiloSystem]] with a default, empty constructor. The concrete
-    * realization is specified by the system property `-Dfp.backend=<class>`.
-    * If no system property is given, the realization defaults to
-    * [[fp.backend.netty.SiloSystem]].
-    *
-    * In both server and client mode, Netty is used to realize the network layer.
-    *
-    * @param port Network port
+    * @param port Port number
     */
   def apply(port: Option[Int] = None): Future[SiloSystem]
+
+  /** Return a server-based silo system.
+    *
+    * A silo system running in server mode has an underlying [[fp.backend.Server]]
+    * to host silos and make those available to other silo systems.
+    *
+    * The underlying server is private to the silo system, i.e., only the silo
+    * system itself directly communicates with the server. A user/client only
+    * directly communicates with such a silo system.
+    *
+    * @param host Host where the server will be booted up
+    */
+  def apply(host: Host): Future[SiloSystem]
 
 }

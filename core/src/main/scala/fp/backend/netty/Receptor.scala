@@ -2,20 +2,20 @@ package fp
 package backend
 package netty
 
-import java.util.concurrent.{ BlockingQueue, CountDownLatch }
+import java.util.concurrent.{BlockingQueue, CountDownLatch}
 
-import fp.model.{ Populate, Populated }
+import com.typesafe.scalalogging.{StrictLogging => Logging}
+import fp.model.{Populate, Populated}
+import fp.util.AsyncExecution
 
-import scala.pickling._
-import Defaults._
-
-import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import scala.pickling.Defaults._
 
 private[netty] class Receptor(mq: BlockingQueue[NettyWrapper])
-    extends Tell with Runnable with Logging {
+    extends Runnable with Helper with AsyncExecution with Logging {
 
   import logger._
 
+  override implicit val ec = scala.concurrent.ExecutionContext.global
   private val latch = new CountDownLatch(1)
 
   def start(): Unit = {

@@ -3,7 +3,7 @@ package fp
 import fp.backend.SiloSystem
 import fp.model.{PicklingProtocol, Populate, Populated}
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
 import scala.spores._
 
@@ -24,12 +24,11 @@ private[fp] class Silo[S, T <: Traversable[S]](private[fp] val data: T)
 class SiloFactory[S, T <: Traversable[S]] private[fp] (val s: Spore[Unit, Silo[S, T]])
   extends PicklingProtocol {
 
-  import scala.concurrent.ExecutionContext.Implicits.global
-  //
   //import picklingProtocol._
   import scala.pickling.Defaults._
 
-  def populateAt(at: Host)(implicit system: SiloSystem): Future[SiloRef[T]] = {
+  def populateAt(at: Host)(implicit system: SiloSystem,
+                           ec: ExecutionContext): Future[SiloRef[T]] = {
     system.request(at) { msgId => Populate(msgId, s) } map {
       case Populated(_, ref) => new MaterializedSilo[T](ref, at)(system)
       case _ => throw new Exception(s"Silo population at `$at` failed.")
