@@ -23,8 +23,7 @@ private[fp] class Silo[S, T <: Traversable[S]](private[fp] val data: T)
   */
 class SiloFactory[S, T <: Traversable[S]] private[fp] (val s: Spore[Unit, Silo[S, T]]) {
 
-  import SimplePicklingProtocol._
-  import SporePickler._
+  import PicklingProtocol._
 
   def populateAt(at: Host)(implicit system: SiloSystem,
                            ec: ExecutionContext): Future[SiloRef[T]] = {
