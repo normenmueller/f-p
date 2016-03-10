@@ -26,10 +26,10 @@ case object Terminate extends Request
   */
 sealed trait RVSP
 
-@directSubclasses(Array(classOf[Populate[_, _]], classOf[Traverse]))
+@directSubclasses(Array(classOf[Populate[_]], classOf[Traverse]))
 sealed abstract class ClientRequest extends Request with Identifiable
 
-case class Populate[S, T <: Traversable[S]](id: MsgId, gen: Spore[Unit,Silo[S, T]])
+case class Populate[T](id: MsgId, gen: Spore[Unit,Silo[T]])
   extends ClientRequest with RVSP
 
 case class Traverse(id: MsgId, node: Node)

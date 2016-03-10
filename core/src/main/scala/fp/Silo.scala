@@ -16,12 +16,12 @@ import scala.spores._
   *
   * [[Silo]]s are not public and cannot be created directly.
   */
-private[fp] class Silo[S, T <: Traversable[S]](private[fp] val data: T)
+private[fp] class Silo[T](private[fp] val data: T)
 
 /** [[Silo]]s can only be created through a [[SiloFactory]],
   * which are used to generate [[Silo]]s on a concrete host node.
   */
-class SiloFactory[S, T <: Traversable[S]] private[fp] (val s: Spore[Unit, Silo[S, T]]) {
+class SiloFactory[T] private[fp] (val s: Spore[Unit, Silo[T]]) {
 
   import SimplePicklingProtocol._
   import SporePickler._
@@ -45,42 +45,38 @@ object SiloFactory extends SiloFactoryHelpers {
     * readable notation, they can pick it.
     *
     * NOTE: There isn't a constructor for the by-value parameter because of two
-    * reasons: clearer to have a direct conversion [[Traversable]] => [[SiloFactory]]
-    * and there's a type conflict (same type after erasure).
+    * reasons: clearer to have a direct conversion [[T]] => [[SiloFactory]]
+    * and there's a type conflict (same function type after erasure).
     * Possible solution: magnet pattern.
     */
-  def apply[S, T <: Traversable[S]]
-  (dataGen: () => T): SiloFactory[S, T] =
+  def apply[T](dataGen: () => T): SiloFactory[T] =
       fromFunctionToSiloFactory(dataGen)
 
 }
 
 trait SiloFactoryHelpers {
 
-  private final def siloGenerator[S, T <: Traversable[S]]
-    (f: () => T): Spore[Unit, Silo[S, T]] = {
-      spore[Unit, Silo[S,T]] {
-        val gen = f
-        Unit => new Silo[S,T](gen())
-      }
+  private final def siloGenerator[T](f: () => T): Spore[Unit, Silo[T]] = {
+    spore[Unit, Silo[T]] {
+      val gen = f
+      Unit => new Silo[T](gen())
     }
+  }
 
-  /** Converts a function that returns a collection to a [[SiloFactory]].
+  /** Converts a function that returns some data to a [[SiloFactory]].
     *
     * This is useful to avoid the user to explicitly create a new instance of
     * [[SiloFactory]] to wrap such a function. Syntactic sugar for the API.
     */
-  implicit def fromFunctionToSiloFactory[S, T <: Traversable[S]]
-    (f: () => T): SiloFactory[S, T] =
-      new SiloFactory(siloGenerator(f))
+  implicit def fromFunctionToSiloFactory[T](f: () => T): SiloFactory[T] =
+    new SiloFactory(siloGenerator(f))
 
-  /** Directly converts a collection to a [[SiloFactory]].
+  /** Directly converts some data to a [[SiloFactory]].
     *
     * This is useful to avoid the user to explicitly create a new instance of
     * [[SiloFactory]] to wrap such a collection. Syntactic sugar for the API.
     */
-  implicit def fromByValueToSiloFactory[S, T <: Traversable[S]]
-    (p: => T): SiloFactory[S, T] =
+  implicit def fromByValueToSiloFactory[T](p: => T): SiloFactory[T] =
       new SiloFactory(siloGenerator(() => p))
 
 }
