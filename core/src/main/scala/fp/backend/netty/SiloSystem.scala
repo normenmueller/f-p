@@ -24,10 +24,10 @@ import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
 /** A Netty-based implementation of a silo system. */
 class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
-    with PicklingProtocol with Ask with Helper with AsyncExecution with Logging {
+    with Ask with Tell with AsyncExecution with Logging {
 
   import logger._
-  import picklingProtocol._
+  import PicklingProtocol._
 
   override val name = java.util.UUID.randomUUID.toString
 

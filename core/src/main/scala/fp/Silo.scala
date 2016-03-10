@@ -1,7 +1,7 @@
 package fp
 
 import fp.backend.SiloSystem
-import fp.model.{PicklingProtocol, Populate, Populated}
+import fp.model.{SimplePicklingProtocol, PicklingProtocol, Populate, Populated}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
@@ -21,11 +21,10 @@ private[fp] class Silo[S, T <: Traversable[S]](private[fp] val data: T)
 /** [[Silo]]s can only be created through a [[SiloFactory]],
   * which are used to generate [[Silo]]s on a concrete host node.
   */
-class SiloFactory[S, T <: Traversable[S]] private[fp] (val s: Spore[Unit, Silo[S, T]])
-  extends PicklingProtocol {
+class SiloFactory[S, T <: Traversable[S]] private[fp] (val s: Spore[Unit, Silo[S, T]]) {
 
-  import picklingProtocol._
-  import scala.spores.SporePickler._
+  import SimplePicklingProtocol._
+  import SporePickler._
 
   def populateAt(at: Host)(implicit system: SiloSystem,
                            ec: ExecutionContext): Future[SiloRef[T]] = {

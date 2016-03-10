@@ -15,7 +15,8 @@ object Build extends Build with Mappings {
       "-encoding", "UTF-8",
       "-feature",
       "-unchecked",
-      "-Xlog-implicits"
+      "-Xlog-implicits",
+      "-language:experimental.macros"
     ),
     resolvers ++= (if (version.value.endsWith("-SNAPSHOT")) List(snapshotsRepo) else Nil),
     parallelExecution in Global := false,
@@ -35,16 +36,23 @@ object Build extends Build with Mappings {
     "ch.qos.logback"              % "logback-classic" % "1.1.5"
   )
 
+  val macroSettings = Seq(
+    libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-library" % _),
+    libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-reflect" % _),
+    libraryDependencies <+= (scalaVersion)("org.scala-lang" % "scala-compiler" % _)
+  )
+
   lazy val core = Project(
     id = "core",
     base = file("core"),
     settings = standardSettings ++
       documentationSettings ++
+      macroSettings ++
       Seq(
         name := "f-p core",
         libraryDependencies ++= Seq(
-          "org.scala-lang.modules"     %% "spores-core"     % "0.2.0",
-          "org.scala-lang.modules"     %% "spores-pickling" % "0.2.0",
+          "org.scala-lang.modules"     %% "spores-core"     % "0.2.1",
+          "org.scala-lang.modules"     %% "spores-pickling" % "0.2.1",
           "org.scala-lang.modules"     %% "scala-pickling"  % "0.10.1",
 
           "io.netty"                    % "netty-all"       % "4.1.0.CR1",

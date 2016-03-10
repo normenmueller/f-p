@@ -34,11 +34,11 @@ trait SiloRef[T] {
 
 }
 
-abstract class SiloRefAdapter[T] extends SiloRef[T] with PicklingProtocol with Logging {
+abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
 
   import fp.core._
   import logger._
-  import picklingProtocol._
+  import PicklingProtocol._
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
