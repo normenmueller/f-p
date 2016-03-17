@@ -17,7 +17,8 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 import scala.concurrent.Promise
 
-private[netty] trait Server extends backend.Server with SiloWarehouse with Logging {
+private[netty] trait Server extends backend.Server with SiloWarehouse
+  with Tell with Logging {
 
   self: SiloSystem =>
 
@@ -45,7 +46,7 @@ private[netty] trait Server extends backend.Server with SiloWarehouse with Loggi
    * `forwarder`: Server handler forwarding system messages from Netty's event loop to `mq`
    */
   private val mq = new LinkedBlockingQueue[NettyWrapper]()
-  private val receptor = new Receptor(mq, this)(ec)
+  private val receptor = new Receptor(mq)(ec, this)
 
   /* Initialize a [[Netty http://goo.gl/0Z9pZM]]-based server.
    *
