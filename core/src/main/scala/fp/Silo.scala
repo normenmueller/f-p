@@ -1,6 +1,8 @@
 package fp
 
+import fp.SiloFactory.SiloGen
 import fp.backend.SiloSystem
+import fp.core.Materialized
 import fp.model.{SimplePicklingProtocol, PicklingProtocol, Populate, Populated}
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -21,7 +23,7 @@ private[fp] class Silo[T](private[fp] val data: T)
 /** [[Silo]]s can only be created through a [[SiloFactory]],
   * which are used to generate [[Silo]]s on a concrete host node.
   */
-class SiloFactory[T] private[fp] (val s: Spore[Unit, Silo[T]]) {
+class SiloFactory[T] private[fp](val s: SiloGen[T]) {
 
   import SimplePicklingProtocol._
   import SporePickler._
@@ -29,7 +31,7 @@ class SiloFactory[T] private[fp] (val s: Spore[Unit, Silo[T]]) {
   def populateAt(at: Host)(implicit system: SiloSystem,
                            ec: ExecutionContext): Future[SiloRef[T]] = {
     system.request(at) { msgId => Populate(msgId, s) } map {
-      case Populated(_, ref) => new MaterializedSilo[T](ref, at)(system)
+      case Populated(_, node) => new MaterializedSilo[T](node, at)
       case _ => throw new Exception(s"Silo population at `$at` failed.")
     }
   }
@@ -37,6 +39,7 @@ class SiloFactory[T] private[fp] (val s: Spore[Unit, Silo[T]]) {
 }
 
 object SiloFactory extends SiloFactoryHelpers {
+  type SiloGen[T] = Spore[Unit, Silo[T]]
 
   /** Create a [[SiloFactory]] explicitly from a function [[Unit => T]].
     *
@@ -50,13 +53,13 @@ object SiloFactory extends SiloFactoryHelpers {
     * Possible solution: magnet pattern.
     */
   def apply[T](dataGen: () => T): SiloFactory[T] =
-      fromFunctionToSiloFactory(dataGen)
+    fromFunctionToSiloFactory(dataGen)
 
 }
 
 trait SiloFactoryHelpers {
 
-  private final def siloGenerator[T](f: () => T): Spore[Unit, Silo[T]] = {
+  private final def siloGenerator[T](f: () => T): SiloGen[T] = {
     spore[Unit, Silo[T]] {
       val gen = f
       Unit => new Silo[T](gen())
@@ -77,7 +80,7 @@ trait SiloFactoryHelpers {
     * [[SiloFactory]] to wrap such a collection. Syntactic sugar for the API.
     */
   implicit def fromByValueToSiloFactory[T](p: => T): SiloFactory[T] =
-      new SiloFactory(siloGenerator(() => p))
+    new SiloFactory(siloGenerator(() => p))
 
 }
 

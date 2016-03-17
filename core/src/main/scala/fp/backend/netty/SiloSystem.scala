@@ -31,7 +31,7 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
 
   override val name = java.util.UUID.randomUUID.toString
 
-  override val promiseOf = new TrieMap[MsgId, Promise[Response]]
+  override val responsesFor = new TrieMap[MsgId, Promise[Response]]
 
   override def request[R <: ClientRequest: Pickler]
     (at: Host)(request: MsgId => R): Future[Response] =
@@ -127,7 +127,7 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
       trace(s"Received message: $msg")
 
       msg match {
-        case response: Response => promiseOf(response.id).success(response)
+        case response: Response => responsesFor(response.id).success(response)
         case _ => warn(s"A response id doesn't match an expected promise: $msg")
       }
     }
@@ -151,8 +151,7 @@ object SiloSystem extends SiloSystemCompanion {
     */
   override def apply(port: Option[Int] = None): Future[SiloSystem] = {
     port match {
-      case Some(portNumber) =>
-        apply(Host("127.0.0.1", portNumber))
+      case Some(portNumber) => apply(Host("127.0.0.1", portNumber))
       case None => Future.successful(new SiloSystem)
     }
   }
@@ -166,13 +165,13 @@ object SiloSystem extends SiloSystemCompanion {
     * system itself directly communicates with the server. A user/client only
     * directly communicates with such a silo system.
     *
-    * @param host Host where the server will be booted up
+    * @param atHost Host where the server will be booted up
     */
-  def apply(host: Host): Future[SiloSystem] = {
+  def apply(atHost: Host): Future[SiloSystem] = {
     val promise = Promise[SiloSystem]
     val withServer = new SiloSystem with Server {
-      override val at = host
-      override val name = host.toString
+      override val host = atHost
+      override val name = atHost.toString
       override val started = promise
     }
     promise.future

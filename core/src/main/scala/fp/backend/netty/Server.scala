@@ -13,14 +13,17 @@ import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.channel.{ ChannelHandler, ChannelHandlerContext, ChannelInitializer, SimpleChannelInboundHandler }
 import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 import scala.concurrent.Promise
 
-private[netty] trait Server extends backend.Server with Logging {
+private[netty] trait Server extends backend.Server with SiloWarehouse with Logging {
 
   self: SiloSystem =>
 
   import logger._
+
+  override lazy val silos = TrieMap[SiloRefId, Silo[_]]()
 
   /* Promise the server is up and running. */
   protected def started: Promise[SiloSystem]
@@ -42,7 +45,7 @@ private[netty] trait Server extends backend.Server with Logging {
    * `forwarder`: Server handler forwarding system messages from Netty's event loop to `mq`
    */
   private val mq = new LinkedBlockingQueue[NettyWrapper]()
-  private val receptor = new Receptor(mq)(ec)
+  private val receptor = new Receptor(mq, this)(ec)
 
   /* Initialize a [[Netty http://goo.gl/0Z9pZM]]-based server.
    *
@@ -108,11 +111,11 @@ private[netty] trait Server extends backend.Server with Logging {
     trace("Server start...")
 
     executor execute receptor
-    server.bind(at.port).sync()
+    server.bind(host.port).sync()
     started success self
 
     trace("Server start done.")
-    info(s"Server listining at port ${at.port}.")
+    info(s"Server listining at port ${host.port}.")
 
     new Thread {
       override def run(): Unit = latch.await()

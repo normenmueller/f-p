@@ -1,14 +1,12 @@
 package fp
 package backend
 
-import java.util.concurrent.atomic.AtomicInteger
+import fp.model.{ClientRequest, Response, MsgId}
+import fp.util.{AsyncExecution, IntGen, Gen}
 
-import com.typesafe.scalalogging.{StrictLogging => Logging}
-import fp.model.{ClientRequest, Response}
-import fp.util.AsyncExecution
-
-import scala.concurrent.Future
 import scala.pickling._
+import scala.concurrent.Future
+import com.typesafe.scalalogging.{StrictLogging => Logging}
 
 
 /** Logical entry point to a collection of [[Silo]]s -- a Silo manager. */
@@ -26,9 +24,9 @@ trait SiloSystem extends AsyncExecution with Logging {
 
   def request[R <: ClientRequest: Pickler](at: Host)(request: MsgId => R): Future[Response]
 
-  object MsgIdGen {
-    private lazy val ids = new AtomicInteger(10)
-    def next = MsgId(ids.incrementAndGet())
+  object MsgIdGen extends Gen[MsgId] {
+    object IntGen extends IntGen
+    def next = MsgId(IntGen.next)
   }
 
 }

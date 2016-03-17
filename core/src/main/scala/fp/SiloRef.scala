@@ -1,14 +1,15 @@
 package fp
 
-import com.typesafe.scalalogging.{StrictLogging => Logging}
-import fp.backend.SiloSystem
 import fp.core._
-import fp.model.{PicklingProtocol, Traverse, Traversed}
+import fp.util.{UUIDGen, Gen}
+import fp.backend.SiloSystem
+import fp.model.{SimplePicklingProtocol, Traverse, Traversed}
 
 import scala.concurrent.Future
+import com.typesafe.scalalogging.{StrictLogging => Logging}
 
 /** A `Silo` is uniquely identified by an `id`. */
-private[fp] case class SiloRefId(id: RefId, at: Host)
+private[fp] final case class SiloRefId(at: Host, id: String = UUIDGen.next)
 
 /** Immutable and serializable handle to a silo.
   *
@@ -38,7 +39,7 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
 
   import fp.core._
   import logger._
-  import PicklingProtocol._
+  import SimplePicklingProtocol._
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -49,17 +50,17 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
     debug(s"Sending graph to host `${id.at}`...")
     system.request(id.at) { msgId => Traverse(msgId, node) } map {
       case Traversed(_, v) => v.asInstanceOf[T]
+      // TODO Don't use exceptions here
       case _ => throw new Exception(s"Computation at `${id.at}` failed.")
     }
   }
 
 }
 
-class MaterializedSilo[T](refId: RefId, at: Host)(protected val system: SiloSystem)
-    extends SiloRefAdapter[T] {
+class MaterializedSilo[T](override val node: Materialized, at: Host)
+                         (implicit val system: SiloSystem) extends SiloRefAdapter[T] {
 
-  override val id = SiloRefId(refId, at)
-  override def node = Materialize(refId)
+  override val id = node.refId
 
 }
 

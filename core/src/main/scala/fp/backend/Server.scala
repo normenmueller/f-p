@@ -5,7 +5,7 @@ package backend
 private[backend] trait Server extends Runnable {
 
   /** Host this server is running at */
-  def at: Host
+  def host: Host
 
   /** Start server */
   def start(): Unit

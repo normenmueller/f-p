@@ -1,6 +1,8 @@
 package fp
 package core
 
+import fp.util.{IntGen, Gen}
+
 import scala.pickling._
 import scala.spores.Spore
 
@@ -10,20 +12,29 @@ trait Serializable[T] {
   def unpickler: Unpickler[T]
 }
 
+/** A unique silo system reference identifier. */
+final case class NodeId private[fp](value: String) extends AnyVal
+
+object NodeIdGen extends Gen[NodeId] {
+  /* We may want to add a host-related prefix to `RefId` */
+  object IntGen extends IntGen
+  override def next: NodeId = NodeId(IntGen.next.toString)
+}
+
 /** A node in the computation graph.
   *
   * Mix in with [[Serializable]] so that the nodes can be sent
   * over the wire.
   */
-@directSubclasses(Array(classOf[Materialize]))
+@directSubclasses(Array(classOf[Materialized]))
 sealed abstract class Node {
-  def refId: RefId
+  def nodeId: NodeId
 }
 
-final case class Materialize(refId: RefId) extends Node
+final case class Materialized(refId: SiloRefId, nodeId: NodeId = NodeIdGen.next) extends Node
 
 final case class Map[U, T <: Traversable[U], V, S <: Traversable[V]](
-  input: Node, refId: RefId, f: T => S,
+  input: Node, nodeId: NodeId, f: T => S,
   pickler: Pickler[Spore[T, S]], unpickler: Unpickler[Spore[T, S]]
 ) extends Node with Serializable[Spore[T, S]]
 

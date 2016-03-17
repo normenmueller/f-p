@@ -18,10 +18,5 @@ package object fp {
 
   }
 
-  /** A unique silo sytem message identifier. */
-  final case class MsgId private[fp] (value: Int) extends AnyVal
-
-  /** A unique silo sytem reference identifier. */
-  final case class RefId private[fp] (value: Int) extends AnyVal
 }
 
