@@ -5,21 +5,16 @@ import java.util.concurrent.{BlockingQueue, CountDownLatch}
 
 import com.typesafe.scalalogging.{StrictLogging => Logging}
 import fp.backend.netty.handlers.PopulateHandler
-import fp.model.{Transformed, Populated, Populate}
+import fp.model.Populate
 import fp.util.AsyncExecution
 
 import scala.concurrent.ExecutionContext
-import scala.pickling.Pickler
-import scala.spores.SporePickler
 
 private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
                              (implicit val ec: ExecutionContext, server: Server)
   extends Runnable with AsyncExecution with Logging {
 
   import logger._
-
-  import fp.model.SimplePicklingProtocol._
-  import SporePickler._
 
   /** Responsible for controlling the status of the [[Receptor]] */
   private val counter = new CountDownLatch(1)
@@ -81,7 +76,8 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
     * message. Therefore, reconfirm it. This is part of the ACK-Retry protocol. */
   def confirmAgainMsg(ctx: NettyContext): Unit = {
     val lastResponse = server.pendingOfConfirmation(ctx.getRemoteHost)
-    server.tell(ctx.channel, lastResponse)
+    implicit val sp = lastResponse.getPickler
+    server.tell(ctx.channel, lastResponse.specialize)
   }
 
   def stop(): Unit = {

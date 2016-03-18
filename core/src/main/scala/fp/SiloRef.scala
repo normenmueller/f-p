@@ -1,7 +1,7 @@
 package fp
 
 import fp.core._
-import fp.util.{UUIDGen, Gen}
+import fp.util.UUIDGen
 import fp.backend.SiloSystem
 import fp.model.{SimplePicklingProtocol, Transform, Transformed}
 

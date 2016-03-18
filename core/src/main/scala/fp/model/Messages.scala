@@ -2,7 +2,7 @@ package fp
 package model
 
 import fp.SiloFactory.SiloGen
-import fp.core.{Materialized, NodeId, Node}
+import fp.core.{Materialized, Node}
 
 import scala.spores._
 import scala.pickling.{Pickler, directSubclasses}
@@ -38,10 +38,42 @@ case class Populate[T](id: MsgId, gen: SiloGen[T]) extends ClientRequest with RV
 
 case class Transform(id: MsgId, node: Node) extends ClientRequest with RVSP
 
+/** We use path-dependent types to overcome some difficulties when
+  * generating picklers for [[Response]]s which actual types we don't know
+  * in some given scenarios, e.g. they are stored in a `Set[Response]`.
+  * See possible use case in the netty `Receptor`.
+  */
 @directSubclasses(Array(classOf[Populated], classOf[Transformed[_]]))
-sealed abstract class Response extends Message
+sealed abstract class Response extends Message {
+  type B <: Response
 
-case class Populated(id: MsgId, node: Materialized) extends Response
+  def specialize: B
+  def getPickler: Pickler[B]
+}
 
-case class Transformed[T](id: MsgId, data: T) extends Response
+case class Populated(id: MsgId, node: Materialized) extends Response {
+  override type B = Populated
+
+  override def specialize: Populated =
+    this.asInstanceOf[Populated]
+
+  import SimplePicklingProtocol._
+  import SporePickler._
+
+  override def getPickler: Pickler[Populated] =
+    implicitly[Pickler[Populated]]
+}
+
+case class Transformed[T: Pickler](id: MsgId, data: T)
+                                  (implicit p: Pickler[Transformed[T]]) extends Response {
+  override type B = Transformed[T]
+
+  override def specialize: Transformed[T] =
+    this.asInstanceOf[Transformed[T]]
+
+  /* We can't ask for a generated `Pickler` for `Transformed[T]`
+   * because T here is not detected as a `Class` but as a `Type`.
+   * Then, we force the call site to generate this for us and reuse it. */
+  override def getPickler: Pickler[Transformed[T]] = p
+}
 

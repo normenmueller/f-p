@@ -6,7 +6,7 @@ import java.net.InetSocketAddress
 import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
-import fp.model.{Populated, Response, Message}
+import fp.model.{Response, Message}
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
@@ -15,10 +15,10 @@ import io.netty.channel.{ ChannelHandler, ChannelHandlerContext}
 import io.netty.channel.{ ChannelInitializer, SimpleChannelInboundHandler }
 import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
-import scala.collection.concurrent.TrieMap
 import scala.collection.mutable
-import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 import scala.concurrent.Promise
+import scala.collection.concurrent.TrieMap
+import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 
 private[netty] trait Server extends backend.Server with SiloWarehouse
   with MsgBookkeeper with Tell with Logging {
