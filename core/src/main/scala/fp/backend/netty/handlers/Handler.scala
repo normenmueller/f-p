@@ -31,8 +31,7 @@ trait Handler[T <: Message] {
 
 object PopulateHandler extends Handler[Populate[_]] {
 
-  import fp.model.SimplePicklingProtocol._
-  import SporePickler._
+  import fp.model.PicklingProtocol._
 
   def handle(msg: Populate[_], ctx: NettyContext)
             (implicit server: Server, ec: ExecutionContext) =

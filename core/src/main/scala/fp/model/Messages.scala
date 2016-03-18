@@ -57,8 +57,7 @@ case class Populated(id: MsgId, node: Materialized) extends Response {
   override def specialize: Populated =
     this.asInstanceOf[Populated]
 
-  import SimplePicklingProtocol._
-  import SporePickler._
+  import PicklingProtocol._
 
   override def getPickler: Pickler[Populated] =
     implicitly[Pickler[Populated]]

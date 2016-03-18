@@ -2,8 +2,7 @@ package fp
 
 import fp.SiloFactory.SiloGen
 import fp.backend.SiloSystem
-import fp.core.Materialized
-import fp.model.{SimplePicklingProtocol, PicklingProtocol, Populate, Populated}
+import fp.model.{PicklingProtocol, Populate, Populated}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
@@ -25,8 +24,8 @@ private[fp] class Silo[T](private[fp] val data: T)
   */
 class SiloFactory[T] private[fp](val s: SiloGen[T]) {
 
-  import SimplePicklingProtocol._
-  import SporePickler._
+  import PicklingProtocol._
+  import sporesPicklers._
 
   def populateAt(at: Host)(implicit system: SiloSystem,
                            ec: ExecutionContext): Future[SiloRef[T]] = {

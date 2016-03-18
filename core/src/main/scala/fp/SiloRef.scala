@@ -3,7 +3,7 @@ package fp
 import fp.core._
 import fp.util.UUIDGen
 import fp.backend.SiloSystem
-import fp.model.{SimplePicklingProtocol, Transform, Transformed}
+import fp.model.{PicklingProtocol, Transform, Transformed}
 
 import scala.concurrent.Future
 import com.typesafe.scalalogging.{StrictLogging => Logging}
@@ -40,13 +40,12 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
   import fp.core._
   import logger._
 
-  import SimplePicklingProtocol._
-  import scala.spores.SporePickler._
+  import PicklingProtocol._
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
-  protected def system: SiloSystem
   protected def node: Node
+  protected def system: SiloSystem
 
   override def send: Future[T] = {
     debug(s"Sending graph to host `${id.at}`...")

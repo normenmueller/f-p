@@ -3,6 +3,7 @@ package backend
 package netty
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
+
 import fp.model._
 import fp.util.AsyncExecution
 
@@ -11,7 +12,6 @@ import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.pickling.Pickler
-import scala.spores.SporePickler
 import scala.util.Try
 
 import io.netty.bootstrap.Bootstrap
@@ -28,8 +28,7 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
     with Ask with Tell with AsyncExecution with Logging {
 
   import logger._
-  import SimplePicklingProtocol._
-  import SporePickler._
+  import PicklingProtocol._
 
   override val name = java.util.UUID.randomUUID.toString
 
