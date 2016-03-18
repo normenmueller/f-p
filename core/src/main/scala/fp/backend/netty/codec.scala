@@ -63,7 +63,7 @@ private[netty] class Decoder extends ByteToMessageDecoder with Logging {
    * in the ByteBuf. Then, if the List is not empty, its contents are passed to
    * the next handler in the pipeline.
    */
-  override def decode(ctx: ChannelHandlerContext, in: ByteBuf, out: JList[Object]): Unit = try {
+  override def decode(ctx: NettyContext, in: ByteBuf, out: JList[Object]): Unit = try {
 
     val buf: ByteBuf = in.readBytes(in.readableBytes())
     val arr: Array[Byte] = if (buf.hasArray()) buf.array() else {

@@ -2,29 +2,30 @@ package fp
 package backend
 package netty
 
+import java.net.InetSocketAddress
 import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
-import fp.model.Message
+import fp.model.{Populated, Response, Message}
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.channel.{ ChannelHandler, ChannelHandlerContext, ChannelInitializer, SimpleChannelInboundHandler }
+import io.netty.channel.{ ChannelHandler, ChannelHandlerContext}
+import io.netty.channel.{ ChannelInitializer, SimpleChannelInboundHandler }
 import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
 import scala.collection.concurrent.TrieMap
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 import scala.concurrent.Promise
 
 private[netty] trait Server extends backend.Server with SiloWarehouse
-  with Tell with Logging {
+  with MsgBookkeeper with Tell with Logging {
 
   self: SiloSystem =>
 
   import logger._
-
-  override lazy val silos = TrieMap[SiloRefId, Silo[_]]()
 
   /* Promise the server is up and running. */
   protected def started: Promise[SiloSystem]
@@ -47,6 +48,16 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
    */
   private val mq = new LinkedBlockingQueue[NettyWrapper]()
   private val receptor = new Receptor(mq)(ec, this)
+
+  /* Not thread-safe, only accessed in the [[Receptor]].
+   * Be careful, [[ConcurrentMap]] could be better than [[TrieMap]] */
+  override lazy val msgsFrom = mutable.Map[InetSocketAddress, MsgBookkeeping[NettyContext]]()
+
+  /* Thread-safe since it's accessed in the handlers */
+  override lazy val pendingOfConfirmation = TrieMap[InetSocketAddress, Response]()
+
+  /* Thread-safe since it's accessed in the handlers */
+  override lazy val silos = TrieMap[SiloRefId, Silo[_]]()
 
   /* Initialize a [[Netty http://goo.gl/0Z9pZM]]-based server.
    *

@@ -33,12 +33,12 @@ sealed abstract class Node {
 
 final case class Materialized(refId: SiloRefId, nodeId: NodeId = NodeIdGen.next) extends Node
 
+/*
+
 final case class Map[U, T <: Traversable[U], V, S <: Traversable[V]](
   input: Node, nodeId: NodeId, f: T => S,
   pickler: Pickler[Spore[T, S]], unpickler: Unpickler[Spore[T, S]]
 ) extends Node with Serializable[Spore[T, S]]
-
-/*
 
 final case class FMapped[U, T <: Traversable[U], V, S <: Traversable[V]](
   input: Node, refId: Int, f: T => SiloRef[V, S]

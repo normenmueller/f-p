@@ -3,7 +3,7 @@ package fp
 import fp.core._
 import fp.util.{UUIDGen, Gen}
 import fp.backend.SiloSystem
-import fp.model.{SimplePicklingProtocol, Traverse, Traversed}
+import fp.model.{SimplePicklingProtocol, Transform, Transformed}
 
 import scala.concurrent.Future
 import com.typesafe.scalalogging.{StrictLogging => Logging}
@@ -39,7 +39,9 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
 
   import fp.core._
   import logger._
+
   import SimplePicklingProtocol._
+  import scala.spores.SporePickler._
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -48,9 +50,8 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
 
   override def send: Future[T] = {
     debug(s"Sending graph to host `${id.at}`...")
-    system.request(id.at) { msgId => Traverse(msgId, node) } map {
-      case Traversed(_, v) => v.asInstanceOf[T]
-      // TODO Don't use exceptions here
+    system.request(id.at) { msgId => Transform(msgId, node) } map {
+      case t: Transformed[T] => t.data
       case _ => throw new Exception(s"Computation at `${id.at}` failed.")
     }
   }

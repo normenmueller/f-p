@@ -11,6 +11,7 @@ import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
 import scala.pickling.Pickler
+import scala.spores.SporePickler
 import scala.util.Try
 
 import io.netty.bootstrap.Bootstrap
@@ -27,7 +28,8 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
     with Ask with Tell with AsyncExecution with Logging {
 
   import logger._
-  import PicklingProtocol._
+  import SimplePicklingProtocol._
+  import SporePickler._
 
   override val name = java.util.UUID.randomUUID.toString
 
@@ -44,7 +46,7 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
     val to = statusOf collect {
       case (host, Connected(channel, worker)) =>
         trace(s"Closing connection to `$host`.")
-        tell(channel, Disconnect)
+        tell(channel, Disconnect(MsgIdGen.next))
           .andThen { case _ => worker.shutdownGracefully() }
           .andThen { case _ => statusOf += (host -> Disconnected) }
     }

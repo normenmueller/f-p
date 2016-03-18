@@ -1,16 +1,19 @@
 package fp
 package backend
 
+import java.net.InetSocketAddress
 import java.util.concurrent.CancellationException
 
 import fp.model.Message
 import io.netty.channel._
 
-import scala.concurrent.{ Future, Promise }
+import scala.concurrent.{Future, Promise}
 import scala.language.implicitConversions
 import scala.util.Try
 
 package object netty {
+
+  type NettyContext = ChannelHandlerContext
 
   /**
    * Wrapper around any message of the internal function-passing protocol that
@@ -19,7 +22,8 @@ package object netty {
    * @param ctx Netty context
    * @param msg Function-passing model
    */
-  private[netty] final case class NettyWrapper(ctx: ChannelHandlerContext, msg: Message)
+  private[netty] final case class NettyWrapper(ctx: NettyContext, msg: Message)
+    extends WrappedMsg[NettyContext]
 
   /**
    * Describe a connection between two nodes in a given network. It can be
@@ -40,6 +44,12 @@ package object netty {
         )
     })
     p.future
+  }
+
+  /** Enrich a NettyContext and add explicit method to get the remote host. */
+  implicit class EnrichedContext(ctx: NettyContext) {
+    def getRemoteHost: InetSocketAddress =
+      ctx.channel.remoteAddress.asInstanceOf[InetSocketAddress]
   }
 
 }
