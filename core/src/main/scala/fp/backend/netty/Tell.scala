@@ -7,13 +7,15 @@ import fp.util.AsyncExecution
 import io.netty.channel.Channel
 
 import scala.concurrent.{Future, Promise}
-import scala.pickling.Pickler
+import scala.pickling.{Pickler, Unpickler}
 import scala.util.{Failure, Success}
 
 trait Tell {
   this: AsyncExecution =>
 
-  /** Tell something to a node that has already established a channel.
+  /** Send a message to a node with which we have
+    * already established a channel. Usually used
+    * for both sending requests and responses.
     *
     * @param via The channel
     * @param message What we tell to the [[Server]]
@@ -21,13 +23,17 @@ trait Tell {
     *
     * TODO change return type to `Unit` but `sync`?
     */
-  def tell[M <: Message: Pickler](via: Channel, message: M): Future[Channel] = {
+  def tell[M <: Message: Pickler: Unpickler]
+      (via: Channel, msg: M): Future[Channel] = {
+
     val promise = Promise[Channel]
-    via.writeAndFlush(message) onComplete {
+    val wrapped = SelfDescribing(msg)
+    via.writeAndFlush(wrapped) onComplete {
       case Success(c) => promise.success(c)
       case Failure(e) => promise.failure(e)
     }
     promise.future
+
   }
 
 }

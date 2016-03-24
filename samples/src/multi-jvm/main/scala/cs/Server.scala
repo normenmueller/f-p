@@ -1,7 +1,7 @@
 package multijvm
 package cs
 
-import backend.SiloSystem
+import fp.backend.netty.SiloSystem
 
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
@@ -24,16 +24,15 @@ import fp._
   * To allow for creation of silos by other nodes, the F-P runtime requires a
   * web server. Current default is a Netty-based web server.
   */
-object Server extends AnyRef with Logging {
+object Server extends App with Logging {
 
   import logger._
 
-  def main(args: Array[String]): Unit =
-    Await.ready(SiloSystem(port = Some(8090)), 10.seconds) onComplete {
-      case Success(sys) =>
-        info(s"Silo system `${sys.name}` up and running.")
-      case Failure(err) =>
-        error(s"Could not start silo system in server mode: ${err.getMessage}")
-    }
+  Await.ready(SiloSystem(port = Some(8999)), 10.seconds) onComplete {
+    case Success(sys) =>
+      info(s"Silo system `${sys.name}` up and running.")
+    case Failure(err) =>
+      error(s"Could not start silo system in server mode: ${err.getMessage}")
+  }
 
 }

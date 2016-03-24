@@ -14,7 +14,14 @@ object SiloSystemServerMode extends AnyRef with App with Logging {
 
   /* Run silo system in server mode.
    */
-  Await.result(SiloSystem(port = Some(8091)), 10.seconds)
+  val creation = SiloSystem(port = Some(8091)) 
+
+  creation onComplete {
+    case scala.util.Success(s) => println(s"Successfully created a `SiloSystem`")
+    case scala.util.Failure(res) => println(s"Failed to create `SiloSystem`: $res")
+  }
+
+  Await.result(creation, 60.seconds)
 
 }
 

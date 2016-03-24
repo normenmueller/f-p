@@ -23,7 +23,8 @@ trait SiloRef[T] {
 
   def id: SiloRefId
 
-  /** Build graph and send it to the node that stores the referenced [[Silo]] */
+  /** Build graph and send it to the node
+    * that stores the referenced [[Silo]] */
   def send: Future[T]
 
   final override def hashCode: Int = id.hashCode

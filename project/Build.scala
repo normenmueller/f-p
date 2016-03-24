@@ -71,10 +71,11 @@ object Build extends Build with Mappings {
       SbtMultiJvm.multiJvmSettings ++
       Seq(
         name := "f-p samples",
-        scalaSource in Compile :=
-          baseDirectory.value / "src"/ "single-jvm" / "main" / "scala",
+        /* Detect both multi-jvm and single-jvm examples */
+        scalaSource in Compile := baseDirectory.value / "src",
         resourceDirectory in Compile :=
           baseDirectory.value / "src"/ "single-jvm" / "main" / "resources",
+        /* Multi-jvm doesn't have tests so we don't care to add them here */
         scalaSource in Test :=
           baseDirectory.value / "src"/ "single-jvm" / "test" / "scala",
         resourceDirectory in Test :=

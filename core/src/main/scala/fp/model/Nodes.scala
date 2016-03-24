@@ -12,8 +12,10 @@ trait Serializable[T] {
   def unpickler: Unpickler[T]
 }
 
-/** A unique silo system reference identifier. */
-final case class NodeId private[fp](value: String) extends AnyVal
+/** A unique silo system reference identifier.
+  * This should be `AnyVal` but scala-pickling does not handle
+  * value classes correctly so it'll be added in the future */
+private[fp] final case class NodeId(value: String)
 
 object NodeIdGen extends Gen[NodeId] {
   /* We may want to add a host-related prefix to `RefId` */

@@ -7,7 +7,6 @@ import fp.core.Materialized
 import fp.model.{Response, Populated, Populate, Message}
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.spores.SporePickler
 
 /** Processes a concrete type of message **asynchronously**.
   *
@@ -21,12 +20,14 @@ trait Handler[T <: Message] {
   def handle(msg: T, ctx: NettyContext)
             (implicit server: Server, ec: ExecutionContext): Future[Unit]
 
-  /** Updates the last pending message that expected confirmation from the
-    * client. It removes the previous pending message. */
-  def storeAsPending[M <: Response](res: M, ctx: NettyContext)
-                                   (implicit server: Server): Unit = {
+  /** Updates the pending message from which the system is
+    * expecting an explicit confirmation from the sender.
+    */
+  private[handlers] def storeAsPending[M <: Response]
+      (res: M, ctx: NettyContext)
+      (implicit server: Server): Unit =
     server.pendingOfConfirmation += (ctx.getRemoteHost -> res)
-  }
+
 }
 
 object PopulateHandler extends Handler[Populate[_]] {
@@ -34,15 +35,16 @@ object PopulateHandler extends Handler[Populate[_]] {
   import fp.model.PicklingProtocol._
 
   def handle(msg: Populate[_], ctx: NettyContext)
-            (implicit server: Server, ec: ExecutionContext) =
+            (implicit server: Server, ec: ExecutionContext) = {
     Future[Unit] {
       val refId = SiloRefId(server.host)
-      server.silos += ((refId, msg.gen()))
+      server.silos += ((refId, msg.gen(())))
       val nodeId = Materialized(refId)
       val response = Populated(msg.id, nodeId)
       storeAsPending(response, ctx)
       server.tell(ctx.channel, response)
     }
+  }
 
 }
 

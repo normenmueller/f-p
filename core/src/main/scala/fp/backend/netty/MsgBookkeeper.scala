@@ -2,31 +2,36 @@ package fp
 package backend
 package netty
 
+import scala.collection.mutable.{Map => Mmap}
 import java.net.InetSocketAddress
 import java.util.concurrent.PriorityBlockingQueue
 
 import fp.model.{Response, Message, MsgId}
 
+/* This trait will be refactored in the next cycle to make it
+ * backend independent and will be place in fp.backend */
 trait MsgBookkeeper {
 
   type ExpectedMsgId = MsgId
+
   /* This blocking queue will be replaced by a lock-free priority queue
    * that @jvican is implementing for Scala, since this one is blocking. */
   type MsgBookkeeping[C] = (ExpectedMsgId, PriorityBlockingQueue[WrappedMsg[C]])
+  type NettyBookkeeper = Mmap[InetSocketAddress, MsgBookkeeping[NettyContext]]
 
-  trait MsgOrdering extends Ordering[Message] {
-    def compare(m1: Message, m2: Message): Int =
-      Ordering.Int.compare(m2.id.value, m1.id.value)
+  object MsgBookkeeping {
+    def default[C]: MsgBookkeeping[C] =
+      (MsgId(1), new PriorityBlockingQueue[WrappedMsg[C]])
   }
 
-  implicit object MsgOrdering extends MsgOrdering
+  /** Keep track of the status of communications from any given node. */
+  def statusFrom: NettyBookkeeper
 
-  import scala.collection.mutable
-
-  /** Keep track of the last received `MsgId` from a given node. */
-  def msgsFrom: mutable.Map[InetSocketAddress, MsgBookkeeping[NettyContext]]
+  def initMsgBookkeeping: NettyBookkeeper =
+    Mmap[InetSocketAddress, MsgBookkeeping[NettyContext]]()
+      .withDefaultValue(MsgBookkeeping.default[NettyContext])
 
   /** Keep track of the last pending message for every host. */
-  def pendingOfConfirmation: mutable.Map[InetSocketAddress, Response]
+  def pendingOfConfirmation: Mmap[InetSocketAddress, Response]
 
 }

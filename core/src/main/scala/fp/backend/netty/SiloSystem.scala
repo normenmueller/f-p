@@ -2,99 +2,104 @@ package fp
 package backend
 package netty
 
-import com.typesafe.scalalogging.{ StrictLogging => Logging }
+import com.typesafe.scalalogging.{StrictLogging => Logging}
 
 import fp.model._
-import fp.util.AsyncExecution
+import fp.util.{UUIDGen, AsyncExecution}
 
+import scala.collection.mutable
 import scala.collection.concurrent.TrieMap
-import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
+import scala.concurrent.ExecutionContext.Implicits.{global => executor}
 import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.language.postfixOps
-import scala.pickling.Pickler
-import scala.util.Try
+import scala.pickling.{Pickler, Unpickler}
+import scala.util.{Failure, Success, Try}
 
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
-import io.netty.channel.{ Channel, ChannelHandler }
-import io.netty.channel.{ ChannelHandlerContext, ChannelInitializer }
-import io.netty.channel.{ ChannelOption, SimpleChannelInboundHandler }
-import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
+import io.netty.channel.{Channel, ChannelHandler}
+import io.netty.channel.{ChannelHandlerContext, ChannelInitializer}
+import io.netty.channel.{ChannelOption, SimpleChannelInboundHandler}
+import io.netty.handler.logging.{LogLevel, LoggingHandler => Logger}
 
 /** A Netty-based implementation of a silo system. */
 class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
-    with Ask with Tell with AsyncExecution with Logging {
+  with Ask with Tell with AsyncExecution with Logging { self =>
 
   import logger._
   import PicklingProtocol._
 
-  override val name = java.util.UUID.randomUUID.toString
+  override val name = UUIDGen.next
 
   override val responsesFor = new TrieMap[MsgId, Promise[Response]]
 
-  override def request[R <: ClientRequest: Pickler]
-    (at: Host)(request: MsgId => R): Future[Response] =
-      connect(at) flatMap { via => ask(via, request(MsgIdGen.next)) }
+  override def request[R <: ClientRequest : Pickler: Unpickler]
+    (to: Host)(request: MsgId => R): Future[Response] =
+      connect(to) flatMap { via => ask(via, request(MsgIdGen.next)) }
+
+  private def shutdownIfServer() = {
+    self match {
+      case s: Server => s.stop()
+      case _ => ()
+    }
+  }
 
   override def terminate(): Future[Unit] = {
     val promise = Promise[Unit]
 
     info(s"Silo system `$name` terminating...")
-    val to = statusOf collect {
-      case (host, Connected(channel, worker)) =>
-        trace(s"Closing connection to `$host`.")
-        tell(channel, Disconnect(MsgIdGen.next))
-          .andThen { case _ => worker.shutdownGracefully() }
-          .andThen { case _ => statusOf += (host -> Disconnected) }
+    val closeAliveConnections = Future {
+      statusOf collect {
+        case (host, Connected(channel, worker)) =>
+          trace(s"Closing connection to `$host`.")
+          tell(channel, Disconnect(MsgIdGen.next))
+            .andThen { case _ => worker.shutdownGracefully() }
+            .andThen { case _ => statusOf += (host -> Disconnected) }
+      }
     }
 
-    // Close connections FROM other silo systems
-    // val from = XXX
-
-    // Terminate underlying server
-    Future.sequence(to) onComplete {
-      case _ =>
-        promise success (this match {
-          case server: Server => server.stop()
-          case _ => ()
-        })
-        info(s"Silo system `$name` terminating done.")
+    closeAliveConnections onComplete {
+      case s: Success[_] =>
+        promise.success(shutdownIfServer())
+        info(s"Silo system `$name` has been terminated.")
+      case f: Failure[_] =>
+        promise.success(shutdownIfServer())
+        error(s"Error when terminating the Silo system `$name`:\n$f")
     }
 
     promise.future
   }
 
-
-  import scala.collection._
-
   private val statusOf: mutable.Map[Host, Status] = new TrieMap[Host, Status]
 
-  private def connect(to: Host): Future[Channel] = statusOf.get(to) match {
-    case None => channel(to) flatMap {
-      case ok: Connected =>
-        statusOf += (to -> ok)
-        Future.successful(ok.channel)
-      case Disconnected =>
-        /* TODO Think better alternative than reconnecting and
-         * TODO If no alternative, set a policy of n tries. */
-        info("Try to connect again after spurious exception...")
+  private def connect(to: Host): Future[Channel] = {
+    statusOf.get(to) match {
+      case None => channel(to) flatMap {
+        case ok: Connected =>
+          Future.successful(ok.channel)
+        case Disconnected =>
+          /* TODO Think better alternative than reconnecting and
+           * TODO If no alternative, set a policy of n tries. */
+          info("Try to connect again after spurious exception...")
+          statusOf -= to
+          connect(to)
+      }
+
+      case Some(Disconnected) =>
         statusOf -= to
         connect(to)
+
+      case Some(Connected(channel, _)) =>
+        Future.successful(channel)
     }
-    case Some(Disconnected) =>
-      statusOf -= to
-      connect(to)
-    case Some(Connected(channel, _)) =>
-      Future.successful(channel)
   }
 
   private def channel(to: Host): Future[Status] = {
     val wrkr = new NioEventLoopGroup
     Try {
-      val b = new Bootstrap
-      b.group(wrkr)
+      (new Bootstrap).group(wrkr)
         .channel(classOf[NioSocketChannel])
         .handler(new ChannelInitializer[SocketChannel] {
           override def initChannel(ch: SocketChannel): Unit = {
@@ -115,25 +120,26 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
     } get
   }
 
-  /**
-   * Handle all the incoming [[Message]]s that come through the Netty pipeline
-   * and fulfilling an existing promise in case it matches the id of any message.
-   */
+  /** Handle all the incoming [[Message]]s that come through the Netty pipeline
+    * and fulfilling an existing promise in case it matches the id of any message.
+    */
   @ChannelHandler.Sharable
-  private class ClientHandler() extends SimpleChannelInboundHandler[Message] with Logging {
+  private class ClientHandler() extends SimpleChannelInboundHandler[Message]
+      with Logging {
 
     import logger._
 
-    override def channelRead0(ctx: ChannelHandlerContext, msg: model.Message): Unit = {
+    override def channelRead0(ctx: ChannelHandlerContext,
+                              msg: Message): Unit = {
       trace(s"Received message: $msg")
-
       msg match {
-        case response: Response => responsesFor(response.id).success(response)
+        case r: Response => responsesFor(r.id).success(r)
         case _ => warn(s"A response id doesn't match an expected promise: $msg")
       }
     }
 
-    override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
+    override def exceptionCaught(ctx: ChannelHandlerContext,
+                                 cause: Throwable): Unit = {
       error("Exception caught in the `ClientHandler`", cause)
       ctx.close()
     }
@@ -152,7 +158,8 @@ object SiloSystem extends SiloSystemCompanion {
     */
   override def apply(port: Option[Int] = None): Future[SiloSystem] = {
     port match {
-      case Some(portNumber) => apply(Host("127.0.0.1", portNumber))
+      case Some(portNumber) =>
+        apply(Host("127.0.0.1", portNumber))
       case None => Future.successful(new SiloSystem)
     }
   }
@@ -166,15 +173,19 @@ object SiloSystem extends SiloSystemCompanion {
     * system itself directly communicates with the server. A user/client only
     * directly communicates with such a silo system.
     *
-    * @param atHost Host where the server will be booted up
+    * @param at Host where the server will be booted up
     */
-  def apply(atHost: Host): Future[SiloSystem] = {
+  def apply(at: Host): Future[SiloSystem] = {
     val promise = Promise[SiloSystem]
-    val withServer = new SiloSystem with Server {
-      override val host = atHost
-      override val name = atHost.toString
-      override val started = promise
+
+    executor execute {
+      new SiloSystem with Server {
+        override val host = at
+        override val name = at.toString
+        override val started = promise
+      }
     }
+
     promise.future
   }
 

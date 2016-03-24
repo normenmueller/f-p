@@ -5,10 +5,20 @@ import fp.SiloFactory.SiloGen
 import fp.core.{Materialized, Node}
 
 import scala.spores._
-import scala.pickling.{Pickler, directSubclasses}
+import scala.pickling._
+import PicklingProtocol._
+import sporesPicklers._
 
-/** A unique silo system message identifier. */
-final case class MsgId private[fp](value: Int) extends AnyVal
+/** A unique silo system message identifier.
+  *
+  * This can't be a value class since scala-pickling does not
+  * deal with value classes properly when pickling/unpickling.
+  * See [[https://github.com/scala/pickling/issues/391 this]].
+  *
+  * This should be a value class but scala pickling does not handle
+  * value classes correctly so it will be added in the future.
+  */
+final case class MsgId(value: Int)
 
 
 /** A message is any packet of information exchanged among the nodes of
@@ -36,6 +46,11 @@ sealed abstract class ClientRequest extends Request
 
 case class Populate[T](id: MsgId, gen: SiloGen[T]) extends ClientRequest with RVSP
 
+object Populate {
+  implicit def mkPickler[T: Pickler]: Pickler[Populate[T]] =
+    Pickler.generate[Populate[T]]
+}
+
 case class Transform(id: MsgId, node: Node) extends ClientRequest with RVSP
 
 /** We use path-dependent types to overcome some difficulties when
@@ -45,27 +60,35 @@ case class Transform(id: MsgId, node: Node) extends ClientRequest with RVSP
   */
 @directSubclasses(Array(classOf[Populated], classOf[Transformed[_]]))
 sealed abstract class Response extends Message {
-  type B <: Response
 
-  def specialize: B
-  def getPickler: Pickler[B]
+  type Id <: Response
+
+  def specialize: Id
+  def getPickler: Pickler[Id]
+  def getUnpickler: Unpickler[Id]
+
 }
 
 case class Populated(id: MsgId, node: Materialized) extends Response {
-  override type B = Populated
+
+  override type Id = Populated
 
   override def specialize: Populated =
     this.asInstanceOf[Populated]
 
   import PicklingProtocol._
-
   override def getPickler: Pickler[Populated] =
     implicitly[Pickler[Populated]]
+
+  override def getUnpickler: Unpickler[Populated] =
+    implicitly[Unpickler[Populated]]
+
 }
 
 case class Transformed[T: Pickler](id: MsgId, data: T)
-                                  (implicit p: Pickler[Transformed[T]]) extends Response {
-  override type B = Transformed[T]
+    (implicit p: Pickler[Transformed[T]], up: Unpickler[Transformed[T]]) extends Response {
+
+  override type Id = Transformed[T]
 
   override def specialize: Transformed[T] =
     this.asInstanceOf[Transformed[T]]
@@ -74,5 +97,11 @@ case class Transformed[T: Pickler](id: MsgId, data: T)
    * because T here is not detected as a `Class` but as a `Type`.
    * Then, we force the call site to generate this for us and reuse it. */
   override def getPickler: Pickler[Transformed[T]] = p
+
+  /* We can't ask for a generated `Pickler` for `Transformed[T]`
+   * because T here is not detected as a `Class` but as a `Type`.
+   * Then, we force the call site to generate this for us and reuse it. */
+  override def getUnpickler: Unpickler[Transformed[T]] = up
+
 }
 

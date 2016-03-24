@@ -9,12 +9,15 @@ import scala.concurrent.Future
 import com.typesafe.scalalogging.{StrictLogging => Logging}
 
 
-/** Logical entry point to a collection of [[Silo]]s -- a Silo manager. */
+/** Represents a node in a network that knows how to interact with
+  * other nodes running the function-passing model. It also provides
+  * to the programmer an entry point to manage [[Silo]]s.
+  */
 trait SiloSystem extends AsyncExecution with Logging {
 
   /** Name identifying a given silo system.
     *
-    * In server mode, [[name]] defaults to `Host:Port`.
+    * In server mode, [[name]] defaults to `host:port`.
     * Otherwise, [[name]] defaults to a random [[java.util.UUID]].
     */
   def name: String
@@ -22,7 +25,8 @@ trait SiloSystem extends AsyncExecution with Logging {
   /** Terminate the silo system. */
   def terminate(): Future[Unit]
 
-  def request[R <: ClientRequest: Pickler](at: Host)(request: MsgId => R): Future[Response]
+  def request[R <: ClientRequest: Pickler: Unpickler]
+    (at: Host)(request: MsgId => R): Future[Response]
 
   object MsgIdGen extends Gen[MsgId] {
     object IntGen extends IntGen

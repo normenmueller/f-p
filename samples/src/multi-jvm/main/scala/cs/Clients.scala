@@ -1,12 +1,20 @@
 package multijvm
 package cs
 
-import backend.SiloSystem
-import com.typesafe.scalalogging.{StrictLogging => Logging}
-import fp._
-
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+
+import scala.pickling._
+import scala.spores._
+
+import fp._
+import fp.model.PicklingProtocol._
+import sporesPicklers._
+
+import fp.backend.netty.SiloSystem
+
+import com.typesafe.scalalogging.{StrictLogging => Logging}
 
 /** A silo system running in client mode can be understood as ''master'', or ''driver''.
   *
@@ -15,7 +23,7 @@ import scala.concurrent.duration._
   * executed computations, and for sending those computations to respective silo
   * systems running in server mode.
   */
-object Clients extends AnyRef with Logging {
+object Clients extends App with Logging {
 
   private val summary = """
 In this talk, I'll present some of our ongoing work on a new programming model for asynchronous and distributed
@@ -33,49 +41,54 @@ stationary data, and get typed communication all for free, all in a friendly col
 
   val numLines = 10
 
-  // To be "siloed" data: Each string is a concatenation of 10 random words,
-  // separated by space
-
   // Alternative 1: Define data via `() => Silo[T]`
-  //val data = () => {
-  //  val buffer = collection.mutable.ListBuffer[String]()
-  //  val random = new scala.util.Random(100)
-  //  for (i <- 0 until numLines) yield {
-  //    val tenWords = for (_ <- 1 to 10) yield word(random)
-  //    buffer += tenWords.mkString(" ")
-  //  }
-  //  new Silo(buffer.toList)
-  //}
+  /*
+  val data = () => {
+    val buffer = collection.mutable.ListBuffer[String]()
+    val random = new scala.util.Random(100)
+    for (i <- 0 until numLines) yield {
+      val tenWords = for (_ <- 1 to 10) yield word(random)
+      buffer += tenWords.mkString(" ")
+    }
+    new Silo(buffer.toList)
+  }
+  */
+
+  //List(1,2).pickle
+  //implicit val e = implicitly[Pickler[List[String]]]
 
   // Alternative 2: Define data via `SiloFactory[T]`
-  val data = new SiloFactory[List[String]] {
-
-    def data = {
-      val buffer = collection.mutable.ListBuffer[String]()
-      val random = new scala.util.Random(100)
-      for (i <- 0 until numLines) yield {
-        val tenWords = for (_ <- 1 to 10) yield word(random)
-        buffer += tenWords.mkString(" ")
-      }
-      buffer.toList
+  /* ON HOLD until bugs of scala pickling are fixed
+   *val data = SiloFactory { () => {
+    val buffer = collection.mutable.ListBuffer[String]()
+    val random = new scala.util.Random(100)
+    for (i <- 0 until numLines) yield {
+      val tenWords = for (_ <- 1 to 10) yield word(random)
+      buffer += tenWords.mkString(" ")
     }
+    buffer.toList
+  }}*/
 
+  // Alternative 3
+  val s = spore[Unit, Silo[List[String]]] {
+    Unit => new Silo(List("1", "2", "3"))
   }
+
+  val data = new SiloFactory(s)
 
   import logger._
 
-  def main(args: Array[String]): Unit = try {
+  try {
     /* Start a silo system in client mode. */
-    val system = Await.result(SiloSystem(), 10.seconds)
+    implicit val system = Await.result(SiloSystem(), 10.seconds)
     info(s"Silo system `${system.name}` up and running.")
 
     /* Specify the location where to publish data. */
-    val at = Host("127.0.0.1", 8090)
+    val host = Host("127.0.0.1", 8999)
 
     /* Populate initial silo, i.e., upload initial data. */
-    import scala.pickling.Defaults._
     val ref: SiloRef[List[String]] =
-      Await.result(system.populate(at, data), 10.seconds)
+      Await.result(data.populateAt(host), 25.seconds)
     info(s"Data populated at ${ref.id.at}")
 
     /* Force execution. */

@@ -41,7 +41,7 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
 
   /* System message processing constituents
    *
-   *      `forwarder --put--▶  mq  ◀--pop-- receptor`
+   *      `forwarder --put-->  mq  <--pop-- receptor`
    *
    * `receptor` : Worker for all incoming messages from all channels.
    * `forwarder`: Server handler forwarding system messages from Netty's event loop to `mq`
@@ -51,7 +51,7 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
 
   /* Not thread-safe, only accessed in the [[Receptor]].
    * Be careful, [[ConcurrentMap]] could be better than [[TrieMap]] */
-  override lazy val msgsFrom = mutable.Map[InetSocketAddress, MsgBookkeeping[NettyContext]]()
+  override lazy val statusFrom = initMsgBookkeeping
 
   /* Thread-safe since it's accessed in the handlers */
   override lazy val pendingOfConfirmation = TrieMap[InetSocketAddress, Response]()
@@ -106,7 +106,7 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
       //     silo sytem can create system messages due to `Id` --- additional
       //     encoder/ decoder are required.
       val msg = s"${cause.getClass.getSimpleName}: ${cause.getMessage}"
-      logger.error(msg)
+      logger.error(s"$msg\n$cause")
       ctx.close()
 
       //import ChannelFutureListener._
@@ -141,6 +141,7 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
     * channels will be closed automatically'' and reconnection attempts should
     * be rejected.
     */
+
   override def stop(): Unit = {
     trace("Server stop...")
 

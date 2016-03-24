@@ -29,10 +29,12 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
 
       val wrappedMsg = incoming.take
       val host = wrappedMsg.ctx.getRemoteHost
-      val (expectedMsg, msgs) = server.msgsFrom(host)
+
+      val status = server.statusFrom(host)
+      val (expectedId, storedMsgs) = status
 
       val msgId = wrappedMsg.msg.id.value
-      val expectedMsgId = expectedMsg.value
+      val expectedMsgId = expectedId.value
 
       if (msgId == expectedMsgId) {
         /* Client and server are on the same page */
@@ -43,7 +45,7 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
       } else if (msgId > expectedMsgId) {
         /* Received a future message since its id is greater
          * than the expected. Store for future processing. */
-        msgs put wrappedMsg
+        storedMsgs put wrappedMsg
       } else {
         error(s"""
           |A message id less than `expectedMsgId.value - 1` has been received.
@@ -52,7 +54,6 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
           """.stripMargin
         )
       }
-
     }
   }
 
@@ -77,6 +78,7 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
   def confirmAgainMsg(ctx: NettyContext): Unit = {
     val lastResponse = server.pendingOfConfirmation(ctx.getRemoteHost)
     implicit val sp = lastResponse.getPickler
+    implicit val sup = lastResponse.getUnpickler
     server.tell(ctx.channel, lastResponse.specialize)
   }
 

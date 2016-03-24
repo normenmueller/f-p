@@ -23,7 +23,11 @@ package object netty {
    * @param msg Function-passing model
    */
   private[netty] final case class NettyWrapper(ctx: NettyContext, msg: Message)
-    extends WrappedMsg[NettyContext]
+    extends WrappedMsg[NettyContext] with Comparable[NettyWrapper] {
+      /* Ugly because we use java PriorityBlockingQueue and requires Comparable */
+      def compareTo(m2: NettyWrapper): Int =
+        Ordering.Int.compare(m2.msg.id.value, msg.id.value)
+    }
 
   /**
    * Describe a connection between two nodes in a given network. It can be

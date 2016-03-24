@@ -17,15 +17,23 @@ import scala.spores._
   *
   * [[Silo]]s are not public and cannot be created directly.
   */
-private[fp] class Silo[T](private[fp] val data: T)
+/* Disable temporarily since this part of the API is not finished
+ * because we have problems with pickling/unpickling `SporeWithEnv`s
+ * private[fp] class Silo[T](private[fp] val data: T)
+ * */ 
+class Silo[T](val data: T)
+
+import scala.pickling._
+import PicklingProtocol._
+import sporesPicklers._
 
 /** [[Silo]]s can only be created through a [[SiloFactory]],
   * which are used to generate [[Silo]]s on a concrete host node.
   */
-class SiloFactory[T] private[fp](val s: SiloGen[T]) {
-
-  import PicklingProtocol._
-  import sporesPicklers._
+/* As a workaround of a bug in scala-pickling, make constructor public
+ * class SiloFactory[T: Pickler] private[fp](val s: SiloGen[T]) {
+ * */
+class SiloFactory[T: Pickler](val s: SiloGen[T]) {
 
   def populateAt(at: Host)(implicit system: SiloSystem,
                            ec: ExecutionContext): Future[SiloRef[T]] = {
@@ -37,7 +45,9 @@ class SiloFactory[T] private[fp](val s: SiloGen[T]) {
 
 }
 
+/** The only source for creation of [[Silo]]s. */
 object SiloFactory extends SiloFactoryHelpers {
+
   type SiloGen[T] = Spore[Unit, Silo[T]]
 
   /** Create a [[SiloFactory]] explicitly from a function [[Unit => T]].
@@ -51,18 +61,19 @@ object SiloFactory extends SiloFactoryHelpers {
     * and there's a type conflict (same function type after erasure).
     * Possible solution: magnet pattern.
     */
-  def apply[T](dataGen: () => T): SiloFactory[T] =
+  def apply[T: Pickler](dataGen: () => T): SiloFactory[T] =
     fromFunctionToSiloFactory(dataGen)
 
 }
 
 trait SiloFactoryHelpers {
 
-  private final def siloGenerator[T](f: () => T): SiloGen[T] = {
-    spore[Unit, Silo[T]] {
+  private final def siloGenerator[T: Pickler](f: () => T): SiloGen[T] = {
+    val s = spore[Unit, Silo[T]] {
       val gen = f
       Unit => new Silo[T](gen())
     }
+    s
   }
 
   /** Converts a function that returns some data to a [[SiloFactory]].
@@ -70,16 +81,18 @@ trait SiloFactoryHelpers {
     * This is useful to avoid the user to explicitly create a new instance of
     * [[SiloFactory]] to wrap such a function. Syntactic sugar for the API.
     */
-  implicit def fromFunctionToSiloFactory[T](f: () => T): SiloFactory[T] =
+  implicit def fromFunctionToSiloFactory[T: Pickler](f: () => T): SiloFactory[T] = {
     new SiloFactory(siloGenerator(f))
+  }
 
   /** Directly converts some data to a [[SiloFactory]].
     *
     * This is useful to avoid the user to explicitly create a new instance of
     * [[SiloFactory]] to wrap such a collection. Syntactic sugar for the API.
     */
-  implicit def fromByValueToSiloFactory[T](p: => T): SiloFactory[T] =
+  implicit def fromByValueToSiloFactory[T: Pickler](p: => T): SiloFactory[T] = {
     new SiloFactory(siloGenerator(() => p))
+  }
 
 }
 

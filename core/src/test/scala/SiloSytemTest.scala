@@ -1,7 +1,6 @@
 package fp
 package test
 
-import fp.backend.SiloSystem
 import fp.backend.netty.SiloSystem
 
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
@@ -13,19 +12,21 @@ import org.scalatest.{ FlatSpec, Matchers }
 
 class SiloSystemTest extends FlatSpec with Matchers {
 
+  def initSilo = Await.ready(SiloSystem(), 10.seconds)
+
   "Instantiation" should "yield a default silo system" in {
-    Await.ready(SiloSystem(), 10.seconds) map { _ shouldBe a [SiloSystem] }
+    initSilo map { _ shouldBe a[SiloSystem] }
   } 
 
   it should "use the default, Netty-based realization" in {
-    Await.ready(SiloSystem(), 10.seconds) map { _ shouldBe a [SiloSystem] }
+    initSilo map { _ shouldBe a[SiloSystem] }
   } 
 
   it should "throw an exception in case of wrong `silo.system.impl` parameter" in {
     val osp = Option(System.getProperty("silo.system.impl"))
 
     System.setProperty("silo.system.impl", "XXX")
-    Await.ready(SiloSystem(), 10.seconds) map { _ shouldBe a [ClassNotFoundException] }
+    initSilo map { _ shouldBe a[ClassNotFoundException] }
 
     osp match {
       case None    => System.clearProperty("silo.system.impl")
@@ -39,11 +40,10 @@ class SiloSystemTest extends FlatSpec with Matchers {
       case Success(s) =>
         Await.result(s.terminate(), 10.seconds)
         true shouldBe false 
-      case Failure(e) => e shouldBe a [java.net.BindException]
+      case Failure(e) => e shouldBe a[java.net.BindException]
     }
     Await.result(system.terminate(), 10.seconds)
   }
 
 }
 
-// vim: set tw=80 ft=scala:

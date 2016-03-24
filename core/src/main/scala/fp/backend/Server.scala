@@ -13,7 +13,10 @@ private[backend] trait Server extends Runnable {
   /** Stop server */
   def stop(): Unit
 
-  final override def run(): Unit = start()
+  /** Once the thread is spawned, start the server */
+  final override def run(): Unit = {
+    start()
+  }
 
 }
 
