@@ -70,10 +70,21 @@ stationary data, and get typed communication all for free, all in a friendly col
   }}*/
 
   // Alternative 3
+  /* NOTE: Spores have to be defined here statically */
   val s = spore[Unit, Silo[List[String]]] {
     Unit => new Silo(List("1", "2", "3"))
   }
 
+  //val s2 = s.pickle.unpickle[Spore[Unit, Silo[List[String]]]]
+  //val mt = s2(())
+
+  val fs: Spore[List[String], List[Int]] = (l: List[String]) => l.map(_.toInt)
+  implicitly[Pickler[List[String]]]
+  implicitly[Unpickler[List[String]]]
+  implicitly[Pickler[List[Int]]]
+  implicitly[Unpickler[List[Int]]]
+  implicitly[Pickler[Spore[List[String], List[Int]]]]
+  implicitly[Unpickler[Spore[List[String], List[Int]]]]
   val data = new SiloFactory(s)
 
   import logger._
@@ -91,8 +102,10 @@ stationary data, and get typed communication all for free, all in a friendly col
       Await.result(data.populateAt(host), 25.seconds)
     info(s"Data populated at ${ref.id.at}")
 
+    val mapped = Await.result(ref.map(fs).send, 25.seconds)
+
     /* Force execution. */
-    //val result: List[String] = Await.result(ref.send(), 10.seconds)
+    //val result: List[String] = Await.result(ref.send, 10.seconds)
 
     /* Print result. */
     //info(s"Size of list: ${result.size}")
@@ -101,7 +114,7 @@ stationary data, and get typed communication all for free, all in a friendly col
 
     Await.result(system.terminate, Duration.Inf)
   } catch { case err: Throwable =>
-    logger.error(s"Silo system terminated with error `${err.getMessage}`.")
+    logger.error(s"Silo system terminated with error:\n $err.")
   }
 
 }

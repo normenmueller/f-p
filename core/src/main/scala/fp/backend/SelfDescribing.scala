@@ -6,8 +6,6 @@ import scala.pickling._
 import fp.model.PicklingProtocol._
 import sporesPicklers._
 
-import org.slf4j.Logger
-
 /** Wrapper useful to allow deserialization of certain cases in which
   * scala-pickling cannot generate pickler/unpicklers for.
   *
@@ -21,7 +19,7 @@ import org.slf4j.Logger
   * statically unpickle the message. This is a workaround to avoid dynamic
   * deserialization (hint: bad performance) and stick with static picklers.
   */
-case class SelfDescribing(unpicklerClassName: String, blob: Array[Byte]) {
+case class SelfDescribing(unpicklerClassName: String, blob: String) {
 
   /* Instantiate a class for an already generated `Unpickler` */
   private def getStaticUnpickler = {
@@ -45,16 +43,15 @@ case class SelfDescribing(unpicklerClassName: String, blob: Array[Byte]) {
    * object, which is Any, otherwise bad things may happen... */
   def unpickleWrapped[T]: T = {
 
-    import scala.pickling.binary.BinaryPickleArray
-    import scala.pickling.binary.BinaryPickle
+    import scala.pickling.json.JSONPickle
 
-    val blobPickle = BinaryPickle(blob)
+    val blobPickle = JSONPickle(blob)
     val reader = pickleFormat.createReader(blobPickle)
     val unpickler = getStaticUnpickler
     val tag = unpickler.tag
 
     reader.beginEntry()
-    reader.hintTag(tag)
+    reader.hintElidedType(tag)
     unpickler.unpickle(tag.key, reader).asInstanceOf[T]
 
   }
@@ -69,9 +66,10 @@ object SelfDescribing {
     * pattern is used in `Tell` and `Ask` when we serialize messages. */
   def apply[M <: Message: Pickler: Unpickler](msg: M): SelfDescribing = {
 
-    val pickler = implicitly[Unpickler[M]]
+    val unpickler = implicitly[Unpickler[M]]
     val pickled = msg.pickle.value
-    SelfDescribing(pickler.getClass.getName, pickled)
+    // `Unpickler` has the same className than the `Pickler`
+    SelfDescribing(unpickler.getClass.getName, pickled)
 
   }
 

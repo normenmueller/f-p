@@ -4,6 +4,7 @@ package model
 import fp.SiloFactory.SiloGen
 import fp.core.{Materialized, Node}
 
+import scala.reflect.ClassTag
 import scala.spores._
 import scala.pickling._
 import PicklingProtocol._
@@ -46,15 +47,10 @@ sealed abstract class ClientRequest extends Request
 
 case class Populate[T](id: MsgId, gen: SiloGen[T]) extends ClientRequest with RVSP
 
-object Populate {
-  implicit def mkPickler[T: Pickler]: Pickler[Populate[T]] =
-    Pickler.generate[Populate[T]]
-}
-
 case class Transform(id: MsgId, node: Node) extends ClientRequest with RVSP
 
 /** We use path-dependent types to overcome some difficulties when
-  * generating picklers for [[Response]]s which actual types we don't know
+  * generating picklers for [[Response]]s whose actual types we don't know
   * in some given scenarios, e.g. they are stored in a `Set[Response]`.
   * See possible use case in the netty `Receptor`.
   */
@@ -85,8 +81,7 @@ case class Populated(id: MsgId, node: Materialized) extends Response {
 
 }
 
-case class Transformed[T: Pickler](id: MsgId, data: T)
-    (implicit p: Pickler[Transformed[T]], up: Unpickler[Transformed[T]]) extends Response {
+case class Transformed[T: Pickler: Unpickler: ClassTag](id: MsgId, data: T) extends Response {
 
   override type Id = Transformed[T]
 
@@ -96,12 +91,14 @@ case class Transformed[T: Pickler](id: MsgId, data: T)
   /* We can't ask for a generated `Pickler` for `Transformed[T]`
    * because T here is not detected as a `Class` but as a `Type`.
    * Then, we force the call site to generate this for us and reuse it. */
-  override def getPickler: Pickler[Transformed[T]] = p
+  override def getPickler: Pickler[Transformed[T]] =
+    implicitly[Pickler[Transformed[T]]]
 
   /* We can't ask for a generated `Pickler` for `Transformed[T]`
    * because T here is not detected as a `Class` but as a `Type`.
    * Then, we force the call site to generate this for us and reuse it. */
-  override def getUnpickler: Unpickler[Transformed[T]] = up
+  override def getUnpickler: Unpickler[Transformed[T]] =
+    implicitly[Unpickler[Transformed[T]]]
 
 }
 

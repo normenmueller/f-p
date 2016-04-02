@@ -18,5 +18,7 @@ package object fp {
 
   }
 
+  def debug(msg: String) = println(msg)
+
 }
 

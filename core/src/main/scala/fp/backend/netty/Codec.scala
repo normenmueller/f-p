@@ -4,18 +4,16 @@ package netty
 
 import java.io.ByteArrayOutputStream
 
-import scala.pickling._
-import scala.pickling.binary.BinaryPickle
+import fp.model.Message
 import fp.model.PicklingProtocol._
 import sporesPicklers._
-
-import fp.model.Message
-import fp.backend.SelfDescribing
 
 import _root_.io.netty.buffer.ByteBuf
 import _root_.io.netty.channel.{ ChannelHandlerContext, ChannelHandler }
 import _root_.io.netty.handler.codec.{ ByteToMessageDecoder, MessageToByteEncoder }
 import _root_.com.typesafe.scalalogging.{ StrictLogging => Logging }
+
+import scala.pickling.json.JSONPickle
 
 /** Converts F-P system messages to a format suitable for transmission.
   *
@@ -37,7 +35,7 @@ private[netty] class Encoder extends MessageToByteEncoder[SelfDescribing] with L
     */
   override def encode(ctx: ChannelHandlerContext, sd: SelfDescribing, out: ByteBuf): Unit = {
     trace(s"Encoding message: $sd")
-    out.writeBytes(sd.pickle.value)
+    out.writeBytes(sd.pickle.value.getBytes)
   }
 
 }
@@ -72,7 +70,7 @@ private[netty] class Decoder extends ByteToMessageDecoder with Logging {
       }
 
       if (!arr.isEmpty) {
-        val sd = BinaryPickle(arr).unpickle[SelfDescribing]
+        val sd = JSONPickle(new String(arr)).unpickle[SelfDescribing]
         val msg = sd.unpickleWrapped[Message]
 
         trace(s"Decoded message: $msg")
@@ -81,7 +79,7 @@ private[netty] class Decoder extends ByteToMessageDecoder with Logging {
       buf.release()
     } catch {
       case e: Throwable =>
-        error(s"Error when decoding: $e")
+        error(s"Error when decoding: $e\n${e.getStackTrace.mkString("\n")}")
         throw e
     }
   }

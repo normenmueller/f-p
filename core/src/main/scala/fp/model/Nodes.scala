@@ -25,22 +25,53 @@ object NodeIdGen extends Gen[NodeId] {
 
 /** A node in the computation graph.
   *
+  * It is either `Materialized` or a `Transformation`.
+  *
   * Mix in with [[Serializable]] so that the nodes can be sent
   * over the wire.
   */
-@directSubclasses(Array(classOf[Materialized]))
+@directSubclasses(Array(classOf[Materialized], classOf[Map[_, _]], classOf[FlatMap[_, _]]))
 sealed abstract class Node {
   def nodeId: NodeId
 }
 
-final case class Materialized(refId: SiloRefId, nodeId: NodeId = NodeIdGen.next) extends Node
+final case class Materialized(
+  refId: SiloRefId,
+  nodeId: NodeId = NodeIdGen.next
+) extends Node
+
+@directSubclasses(Array(classOf[Map[_, _]], classOf[FlatMap[_, _]]))
+sealed abstract class Transformation extends Node {
+  def target: Node
+}
+
+final case class Map[T, S](
+  target: Node,
+  f: Spore[T, S],
+  nodeId: NodeId = NodeIdGen.next
+)(implicit p: Pickler[Spore[T, S]], u: Unpickler[Spore[T, S]]) extends Transformation
+
+final case class FlatMap[T, S](
+  target: Node,
+  f: Spore[T, SiloRef[S]],
+  nodeId: NodeId = NodeIdGen.next
+)(implicit p: Pickler[Spore[T, SiloRef[S]]], u: Unpickler[Spore[T, SiloRef[S]]]) extends Transformation
+
+object NodesPicklerUnpicklers {
+  /*
+  implicit object NodePicklerUnpickler extends Pickler[Node] with Unpickler[Node] {
+
+    override def tag = implicitly[FastTypeTag[Node]]
+
+    override def pickle(picklee: Node, builder: PBuilder): Unit = ???
+
+
+    override def unpickle(tag: String, reader: PReader): Any = ???
+  }
+  */
+}
 
 /*
-
-final case class Map[U, T <: Traversable[U], V, S <: Traversable[V]](
-  input: Node, nodeId: NodeId, f: T => S,
-  pickler: Pickler[Spore[T, S]], unpickler: Unpickler[Spore[T, S]]
-) extends Node with Serializable[Spore[T, S]]
 
 final case class FMapped[U, T <: Traversable[U], V, S <: Traversable[V]](
   input: Node, refId: Int, f: T => SiloRef[V, S]

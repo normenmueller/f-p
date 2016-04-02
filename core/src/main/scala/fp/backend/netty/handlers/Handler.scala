@@ -3,10 +3,11 @@ package backend
 package netty
 package handlers
 
-import fp.core.Materialized
-import fp.model.{Response, Populated, Populate, Message}
+import fp.core.{Transformation, Node, Materialized}
+import fp.model._
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.spores.Spore
 
 /** Processes a concrete type of message **asynchronously**.
   *
@@ -43,6 +44,28 @@ object PopulateHandler extends Handler[Populate[_]] {
       val response = Populated(msg.id, nodeId)
       storeAsPending(response, ctx)
       server.tell(ctx.channel, response)
+    }
+  }
+
+}
+
+
+object TransformHandler extends Handler[Transform] {
+
+  import fp.model.PicklingProtocol._
+
+  @scala.annotation.tailrec
+  private def findClosestMaterialized(n: Node): Materialized = {
+    n match {
+      case m: Materialized => m
+      case t: Transformation => findClosestMaterialized(t.target)
+    }
+  }
+
+  def handle(msg: Transform, ctx: NettyContext)
+            (implicit server: Server, ec: ExecutionContext) = {
+    Future[Unit] {
+      println("received")
     }
   }
 

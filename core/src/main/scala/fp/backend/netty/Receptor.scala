@@ -4,8 +4,8 @@ import java.net.InetSocketAddress
 import java.util.concurrent.{BlockingQueue, CountDownLatch}
 
 import com.typesafe.scalalogging.{StrictLogging => Logging}
-import fp.backend.netty.handlers.PopulateHandler
-import fp.model.Populate
+import fp.backend.netty.handlers.{TransformHandler, PopulateHandler}
+import fp.model.{Transform, Populate}
 import fp.util.AsyncExecution
 
 import scala.concurrent.ExecutionContext
@@ -20,7 +20,7 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
   private val counter = new CountDownLatch(1)
 
   /* It will get inlined by the JVM since it's private, no overhead */
-  private def processingEnabled = counter.getCount > 0
+  @inline private def processingEnabled = counter.getCount > 0
 
   def start(): Unit = {
     trace("Receptor started.")
@@ -66,7 +66,8 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
     val NettyWrapper(ctx, msg) = wrapper
 
     msg match {
-      case m: Populate[_] => PopulateHandler.handle(m, ctx)
+      case p: Populate[_] => PopulateHandler.handle(p, ctx)
+      case m: Transform => TransformHandler.handle(m, ctx)
       case _ => error(s"We weren't able to handle $msg")
     }
 

@@ -18,7 +18,7 @@ trait Tell {
     * for both sending requests and responses.
     *
     * @param via The channel
-    * @param message What we tell to the [[Server]]
+    * @param msg What we tell to the [[Server]]
     * @tparam M Type of message
     *
     * TODO change return type to `Unit` but `sync`?
