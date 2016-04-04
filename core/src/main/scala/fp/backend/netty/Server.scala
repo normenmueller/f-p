@@ -15,7 +15,6 @@ import io.netty.channel.{ ChannelHandler, ChannelHandlerContext}
 import io.netty.channel.{ ChannelInitializer, SimpleChannelInboundHandler }
 import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 
-import scala.collection.mutable
 import scala.concurrent.Promise
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
@@ -39,14 +38,14 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
    * has been initiated by the surrounding silo system. */
   private val latch = new CountDownLatch(1)
 
-  /* System message processing constituents
-   *
-   *      `forwarder --put-->  mq  <--pop-- receptor`
-   *
-   * `receptor` : Worker for all incoming messages from all channels.
-   * `forwarder`: Server handler forwarding system messages from Netty's event loop to `mq`
-   */
-  private val mq = new LinkedBlockingQueue[NettyWrapper]()
+  /** System message processing constituents
+    *
+    *      `forwarder --put-->  mq  <--pop-- receptor`
+    *
+    * `receptor` : Worker for all incoming messages from all channels.
+    * `forwarder`: Server handler that forwards messages received by Netty.
+    */
+  private val mq = new LinkedBlockingQueue[NettyWrapper]
   private val receptor = new Receptor(mq)(ec, this)
 
   /* Not thread-safe, only accessed in the [[Receptor]].
@@ -54,15 +53,16 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
   override lazy val statusFrom = initMsgBookkeeping
 
   /* Thread-safe since it's accessed in the handlers */
-  override lazy val pendingOfConfirmation = TrieMap[InetSocketAddress, Response]()
+  override lazy val pendingOfConfirmation = TrieMap.empty[InetSocketAddress, Response]
 
   /* Thread-safe since it's accessed in the handlers */
-  override lazy val silos = TrieMap[SiloRefId, Silo[_]]()
+  override lazy val silos = TrieMap.empty[SiloRefId, Silo[_]]
 
   /* Initialize a [[Netty http://goo.gl/0Z9pZM]]-based server.
    *
-   * Note: [[NioEventLoopGroup]] is supposed to be used only for non-blocking actions.
-   * Therefore we fork via [[EventExecutorGroup]] to pass system messages to the `Receptor`.
+   * Note: [[NioEventLoopGroup]] is supposed to be used only for non-blocking
+   * actions. Therefore we fork via [[EventExecutorGroup]] to pass system
+   * messages to the `Receptor`.
    */
   trace("Server initializing...")
 
@@ -123,7 +123,7 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
     trace("Server start...")
 
     executor execute receptor
-    server.bind(host.port).sync()
+    server bind(host.port) sync()
     started success self
 
     trace("Server start done.")
@@ -141,7 +141,6 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
     * channels will be closed automatically'' and reconnection attempts should
     * be rejected.
     */
-
   override def stop(): Unit = {
     trace("Server stop...")
 

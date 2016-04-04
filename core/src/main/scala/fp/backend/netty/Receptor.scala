@@ -19,7 +19,6 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
   /** Responsible for controlling the status of the [[Receptor]] */
   private val counter = new CountDownLatch(1)
 
-  /* It will get inlined by the JVM since it's private, no overhead */
   @inline private def processingEnabled = counter.getCount > 0
 
   def start(): Unit = {
@@ -28,6 +27,7 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
     while (processingEnabled) {
 
       val wrappedMsg = incoming.take
+      debug(s"Receptor received: $wrappedMsg")
       val host = wrappedMsg.ctx.getRemoteHost
 
       val status = server.statusFrom(host)
@@ -49,8 +49,8 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
       } else {
         error(s"""
           |A message id less than `expectedMsgId.value - 1` has been received.
-          |This means that the invariants of the protocol have been violated and
-          |there's a bug either in the client or in the server.
+          |This means that the invariants of the protocol have been violated
+          |and there's a bug either in the client or in the server.
           """.stripMargin
         )
       }
@@ -63,8 +63,8 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
     * for each type of message.
     */
   def handleMsg(wrapper: NettyWrapper, host: InetSocketAddress): Unit = {
-    val NettyWrapper(ctx, msg) = wrapper
 
+    val NettyWrapper(ctx, msg) = wrapper
     msg match {
       case p: Populate[_] => PopulateHandler.handle(p, ctx)
       case m: Transform => TransformHandler.handle(m, ctx)

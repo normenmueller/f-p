@@ -5,10 +5,13 @@ import fp.SiloFactory.SiloGen
 import fp.core.{Materialized, Node}
 
 import scala.reflect.ClassTag
+
 import scala.spores._
 import scala.pickling._
+
 import PicklingProtocol._
 import sporesPicklers._
+import nodesPicklers._
 
 /** A unique silo system message identifier.
   *
@@ -72,7 +75,6 @@ case class Populated(id: MsgId, node: Materialized) extends Response {
   override def specialize: Populated =
     this.asInstanceOf[Populated]
 
-  import PicklingProtocol._
   override def getPickler: Pickler[Populated] =
     implicitly[Pickler[Populated]]
 
@@ -81,24 +83,22 @@ case class Populated(id: MsgId, node: Materialized) extends Response {
 
 }
 
-case class Transformed[T: Pickler: Unpickler: ClassTag](id: MsgId, data: T) extends Response {
+/** Represents a successful transformation over some data of a [[Silo]] that
+  * it's sent back to the node that requested it. It's the natural response
+  * to a `send` operation since it returns the result of the transformation.
+  */
+case class Transformed[T](id: MsgId, data: T)
+    (implicit p: Pickler[Transformed[T]], u: Unpickler[Transformed[T]]) extends Response {
 
   override type Id = Transformed[T]
 
   override def specialize: Transformed[T] =
     this.asInstanceOf[Transformed[T]]
 
-  /* We can't ask for a generated `Pickler` for `Transformed[T]`
-   * because T here is not detected as a `Class` but as a `Type`.
-   * Then, we force the call site to generate this for us and reuse it. */
-  override def getPickler: Pickler[Transformed[T]] =
-    implicitly[Pickler[Transformed[T]]]
-
-  /* We can't ask for a generated `Pickler` for `Transformed[T]`
-   * because T here is not detected as a `Class` but as a `Type`.
-   * Then, we force the call site to generate this for us and reuse it. */
-  override def getUnpickler: Unpickler[Transformed[T]] =
-    implicitly[Unpickler[Transformed[T]]]
+  /* We are forced to ask for the `Pickler`s/`Unpickler`s of `Transformed[T]`
+   * in the constructors because they have to be generated in the call site. */
+  override def getPickler: Pickler[Transformed[T]] = p
+  override def getUnpickler: Unpickler[Transformed[T]] = u
 
 }
 

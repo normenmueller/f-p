@@ -62,6 +62,7 @@ private[netty] class Decoder extends ByteToMessageDecoder with Logging {
     */
   override def decode(ctx: NettyContext, in: ByteBuf, out: JList[Object]): Unit = {
     try {
+
       val buf: ByteBuf = in.readBytes(in.readableBytes())
       val arr: Array[Byte] = if (buf.hasArray()) buf.array() else {
         val bos = new ByteArrayOutputStream
@@ -70,17 +71,16 @@ private[netty] class Decoder extends ByteToMessageDecoder with Logging {
       }
 
       if (!arr.isEmpty) {
-        val sd = JSONPickle(new String(arr)).unpickle[SelfDescribing]
+        val received = new String(arr)
+        val sd = JSONPickle(received).unpickle[SelfDescribing]
         val msg = sd.unpickleWrapped[Message]
-
         trace(s"Decoded message: $msg")
         out add msg
       } else () // nop
+
       buf.release()
-    } catch {
-      case e: Throwable =>
-        error(s"Error when decoding: $e\n${e.getStackTrace.mkString("\n")}")
-        throw e
+    } catch { case e: Throwable =>
+        error(s"Decoding error: $e\n${e.getStackTrace.mkString("\n")}")
     }
   }
 

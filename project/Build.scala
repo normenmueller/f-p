@@ -51,9 +51,9 @@ object Build extends Build with Mappings {
       Seq(
         name := "f-p core",
         libraryDependencies ++= Seq(
-          "org.scala-lang.modules"     %% "spores-core"     % "0.2.4-SNAPSHOT",
-          "org.scala-lang.modules"     %% "spores-pickling" % "0.2.4-SNAPSHOT",
-          "org.scala-lang.modules"     %% "scala-pickling"  % "0.11.0-SNAPSHOT",
+          "org.scala-lang.modules"     %% "spores-core"     % "0.2.4-M1",
+          "org.scala-lang.modules"     %% "spores-pickling" % "0.2.4-M1",
+          "org.scala-lang.modules"     %% "scala-pickling"  % "0.11.0-M1",
 
           "io.netty"                    % "netty-all"       % "4.1.0.CR1",
           "org.javassist"               % "javassist"       % "3.20.0-GA",

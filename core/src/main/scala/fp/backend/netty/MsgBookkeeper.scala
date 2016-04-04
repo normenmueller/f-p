@@ -8,13 +8,13 @@ import java.util.concurrent.PriorityBlockingQueue
 
 import fp.model.{Response, Message, MsgId}
 
-/* This trait will be refactored in the next cycle to make it
- * backend independent and will be place in fp.backend */
+/* This trait will be refactored in the next cycle to make
+ * it backend independent and will be placed in fp.backend. */
 trait MsgBookkeeper {
 
   type ExpectedMsgId = MsgId
 
-  /* This blocking queue will be replaced by a lock-free priority queue
+  /* This priority blocking queue will be replaced by a lock-free priority queue
    * that @jvican is implementing for Scala, since this one is blocking. */
   type MsgBookkeeping[C] = (ExpectedMsgId, PriorityBlockingQueue[WrappedMsg[C]])
   type NettyBookkeeper = Mmap[InetSocketAddress, MsgBookkeeping[NettyContext]]

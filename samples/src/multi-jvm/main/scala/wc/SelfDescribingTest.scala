@@ -11,7 +11,6 @@ import fp.model.Populate
 import fp.model.MsgId
 import fp.model.PicklingProtocol._
 import sporesPicklers._
-import scala.pickling.static._
 
 object SelfDescribingTest extends App {
 

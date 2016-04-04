@@ -1,6 +1,8 @@
 package fp
 package model
 
+import fp.core.LineagePickling
+
 import scala.pickling._
 import scala.pickling.internal.HybridRuntime
 import scala.pickling.json.{JsonFormats}
@@ -18,10 +20,11 @@ object PicklingProtocol extends {
 } with Ops with AllPicklers with JsonFormats {
 
   /** Very important, since it solves an optimization issue */
-  //implicit val so = static.StaticOnly
+  implicit val so = static.StaticOnly
 
   /* Direct access to the picklers of spores, import to use */
   val sporesPicklers = SporePickler
+  val nodesPicklers = LineagePickling
 
 }
 

@@ -28,13 +28,13 @@ trait SiloRef[T] {
 
   /** Build graph and send it to the node
     * that stores the referenced [[Silo]] */
-  def send(implicit p: Pickler[Silo[T]], u: Unpickler[Silo[T]]): Future[T]
+  def send: Future[T]
 
   def map[S](f: Spore[T, S])
     (implicit ps: Pickler[Spore[T,S]], us: Unpickler[Spore[T, S]]): SiloRef[S]
 
-  def flatMap[S](f: Spore[T, SiloRef[S]])
-    (implicit ps: Pickler[Spore[T,SiloRef[S]]], us: Unpickler[Spore[T, SiloRef[S]]]): SiloRef[S]
+  def flatMap[S](f: Spore[T, Silo[S]])
+    (implicit ps: Pickler[Spore[T,Silo[S]]], us: Unpickler[Spore[T, Silo[S]]]): SiloRef[S]
 
   final override def hashCode: Int = id.hashCode
 
@@ -50,31 +50,31 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
   import logger._
   import PicklingProtocol._
   import sporesPicklers._
+  import nodesPicklers._
+
   import scala.concurrent.ExecutionContext.Implicits.global
 
   protected def node: Node
   protected def system: SiloSystem
 
-  override def send(implicit p: Pickler[Silo[T]], u: Unpickler[Silo[T]]): Future[T] = {
+  override def send: Future[T] = {
     debug(s"Sending graph to host `${id.at}`...")
-    implicitly[Pickler[Transform]]
-    implicitly[Unpickler[Transform]]
     system.request(id.at) { Transform(_, node) } map {
       case t: Transformed[T] => t.data
       case _ => throw new Exception(s"Computation at `${id.at}` failed.")
     }
   }
 
-  override def map[U](f: Spore[T, U])(implicit ps: Pickler[Spore[T,U]], us: Unpickler[Spore[T, U]]): SiloRef[U] = {
+  override def map[U](f: Spore[T, U])
+    (implicit ps: Pickler[Spore[T,U]], us: Unpickler[Spore[T, U]]): SiloRef[U] = {
     debug(s"Creating map node targeting $node")
     val mapped = Map(node, f)
     new TransformedSilo(mapped)(system)
   }
 
-  override def flatMap[U](f: Spore[T, SiloRef[U]])(implicit ps: Pickler[Spore[T,SiloRef[U]]], us: Unpickler[Spore[T, SiloRef[U]]]): SiloRef[U] = {
+  override def flatMap[U](f: Spore[T, Silo[U]])
+    (implicit ps: Pickler[Spore[T,Silo[U]]], us: Unpickler[Spore[T, Silo[U]]]): SiloRef[U] = {
     debug(s"Creating flatMap node targeting $node")
-    implicitly[Pickler[SiloRef[U]]]
-    implicitly[Unpickler[SiloRef[U]]]
     val flatMapped = FlatMap(node, f)
     new TransformedSilo(flatMapped)(system)
   }
