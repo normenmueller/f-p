@@ -25,9 +25,8 @@ trait Handler[T <: Message] {
     * expecting an explicit confirmation from the sender.
     */
   private[handlers] def storeAsPending[M <: Response]
-      (res: M, ctx: NettyContext)
-      (implicit server: Server): Unit =
-    server.pendingOfConfirmation += (ctx.getRemoteHost -> res)
+      (res: M, ctx: NettyContext)(implicit server: Server): Unit =
+    server.unconfirmedResponses += (ctx.getRemoteHost -> res)
 
 }
 
@@ -49,7 +48,6 @@ object PopulateHandler extends Handler[Populate[_]] {
 
 }
 
-
 object TransformHandler extends Handler[Transform] {
 
   import fp.model.PicklingProtocol._
@@ -58,13 +56,14 @@ object TransformHandler extends Handler[Transform] {
   private def findClosestMaterialized(n: Node): Materialized = {
     n match {
       case m: Materialized => m
-      case t: Transformation => findClosestMaterialized(t.target)
+      case t: Transformation[u, s] => findClosestMaterialized(t.target)
     }
   }
 
   def handle(msg: Transform, ctx: NettyContext)
             (implicit server: Server, ec: ExecutionContext) = {
     Future[Unit] {
+      val (id, node) = (msg.id, msg.node)
       println("received")
     }
   }

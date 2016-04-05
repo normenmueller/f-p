@@ -7,7 +7,7 @@ import scala.spores.Spore
 import fp.core._
 import fp.util.UUIDGen
 import fp.backend.SiloSystem
-import fp.model.{PicklingProtocol, Transform, Transformed}
+import fp.model.{RequestData, PicklingProtocol, Transform, Transformed}
 
 import com.typesafe.scalalogging.{StrictLogging => Logging}
 
@@ -52,50 +52,67 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
   import sporesPicklers._
   import nodesPicklers._
 
-  import scala.concurrent.ExecutionContext.Implicits.global
-
   protected def node: Node
   protected def system: SiloSystem
-
-  override def send: Future[T] = {
-    debug(s"Sending graph to host `${id.at}`...")
-    system.request(id.at) { Transform(_, node) } map {
-      case t: Transformed[T] => t.data
-      case _ => throw new Exception(s"Computation at `${id.at}` failed.")
-    }
-  }
 
   override def map[U](f: Spore[T, U])
     (implicit ps: Pickler[Spore[T,U]], us: Unpickler[Spore[T, U]]): SiloRef[U] = {
     debug(s"Creating map node targeting $node")
     val mapped = Map(node, f)
-    new TransformedSilo(mapped)(system)
+    new TransformedSilo(mapped)(system, us)
   }
 
   override def flatMap[U](f: Spore[T, Silo[U]])
     (implicit ps: Pickler[Spore[T,Silo[U]]], us: Unpickler[Spore[T, Silo[U]]]): SiloRef[U] = {
     debug(s"Creating flatMap node targeting $node")
     val flatMapped = FlatMap(node, f)
-    new TransformedSilo(flatMapped)(system)
+    new TransformedSilo(flatMapped)(system, us)
   }
 
 }
 
-class MaterializedSilo[T](override val node: Materialized, at: Host)
-                         (implicit val system: SiloSystem) extends SiloRefAdapter[T] {
+class MaterializedSilo[R](override val node: Materialized, at: Host)
+                         (implicit val system: SiloSystem) extends SiloRefAdapter[R] {
+
+  import PicklingProtocol._
+  import nodesPicklers._
+
+  import scala.concurrent.ExecutionContext.Implicits.global
 
   override val id = node.refId
 
+  override def send: Future[R] = {
+    debug(s"Requesting data of materialized node to host `${id.at}`...")
+    system.request(id.at) { RequestData(_, node) } map {
+      case t: Transformed[R] => t.data
+      case _ => throw new Exception(s"Computation at `${id.at}` failed.")
+    }
+  }
+
 }
 
-class TransformedSilo[T](override val node: Node)
-                        (implicit val system: SiloSystem) extends SiloRefAdapter[T] {
+class TransformedSilo[T, S, R](override val node: Transformation[T, S])
+  (implicit val system: SiloSystem, up: Unpickler[Spore[T, S]]) extends SiloRefAdapter[R] {
+
+  import PicklingProtocol._
+  import nodesPicklers._
+
+  import scala.concurrent.ExecutionContext.Implicits.global
+
+  override def send: Future[R] = {
+    debug(s"Sending graph to host `${id.at}`...")
+    val unpicklerReturnType = up.getClass.getName
+    system.request(id.at) { Transform(_, node, unpicklerReturnType) } map {
+      case t: Transformed[R] => t.data
+      case _ => throw new Exception(s"Computation at `${id.at}` failed.")
+    }
+  }
 
   @scala.annotation.tailrec
   private def findClosestMaterialized(n: Node): Materialized = {
     n match {
       case m: Materialized => m
-      case t: Transformation => findClosestMaterialized(t.target)
+      case t: Transformation[t,s] => findClosestMaterialized(t.target)
     }
   }
 

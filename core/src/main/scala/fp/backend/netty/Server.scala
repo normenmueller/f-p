@@ -20,7 +20,7 @@ import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
 
 private[netty] trait Server extends backend.Server with SiloWarehouse
-  with MsgBookkeeper with Tell with Logging {
+  with MessagingLayer[NettyContext] with Tell with Logging {
 
   self: SiloSystem =>
 
@@ -50,10 +50,10 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
 
   /* Not thread-safe, only accessed in the [[Receptor]].
    * Be careful, [[ConcurrentMap]] could be better than [[TrieMap]] */
-  override lazy val statusFrom = initMsgBookkeeping
+  override lazy val statusFrom = initMessagingHub
 
   /* Thread-safe since it's accessed in the handlers */
-  override lazy val pendingOfConfirmation = TrieMap.empty[InetSocketAddress, Response]
+  override lazy val unconfirmedResponses = TrieMap.empty[InetSocketAddress, Response]
 
   /* Thread-safe since it's accessed in the handlers */
   override lazy val silos = TrieMap.empty[SiloRefId, Silo[_]]

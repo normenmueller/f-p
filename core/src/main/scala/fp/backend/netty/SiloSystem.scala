@@ -7,7 +7,7 @@ import com.typesafe.scalalogging.{StrictLogging => Logging}
 import fp.model._
 import fp.util.{UUIDGen, AsyncExecution}
 
-import scala.collection.mutable
+import scala.collection.mutable.{Map => Mmap}
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.{global => executor}
 import scala.concurrent.{ExecutionContext, Future, Promise}
@@ -51,12 +51,12 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
 
     info(s"Silo system `$name` terminating...")
     val closeAliveConnections = Future {
-      statusOf collect {
+      stateOf collect {
         case (host, Connected(channel, worker)) =>
           trace(s"Closing connection to `$host`.")
           tell(channel, Disconnect(MsgIdGen.next))
             .andThen { case _ => worker.shutdownGracefully() }
-            .andThen { case _ => statusOf += (host -> Disconnected) }
+            .andThen { case _ => stateOf += (host -> Disconnected) }
       }
     }
 
@@ -72,10 +72,10 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
     promise.future
   }
 
-  private val statusOf: mutable.Map[Host, Status] = new TrieMap[Host, Status]
+  private val stateOf: Mmap[Host, State] = new TrieMap[Host, State]
 
   private def connect(to: Host): Future[Channel] = {
-    statusOf.get(to) match {
+    stateOf.get(to) match {
       case None => channel(to) flatMap {
         case ok: Connected =>
           Future.successful(ok.channel)
@@ -83,12 +83,12 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
           /* TODO Think better alternative than reconnecting and
            * TODO If no alternative, set a policy of n tries. */
           info("Try to connect again after spurious exception...")
-          statusOf -= to
+          stateOf -= to
           connect(to)
       }
 
       case Some(Disconnected) =>
-        statusOf -= to
+        stateOf -= to
         connect(to)
 
       case Some(Connected(channel, _)) =>
@@ -96,7 +96,7 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
     }
   }
 
-  private def channel(to: Host): Future[Status] = {
+  private def channel(to: Host): Future[State] = {
     val wrkr = new NioEventLoopGroup
     Try {
       (new Bootstrap).group(wrkr)
@@ -116,7 +116,7 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
       case t: Throwable =>
         wrkr.shutdownGracefully()
         error("Exception caught when processing message in the pipeline", t)
-        Future.successful[Status](Disconnected)
+        Future.successful[State](Disconnected)
     } get
   }
 

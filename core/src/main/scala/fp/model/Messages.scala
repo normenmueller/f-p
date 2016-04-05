@@ -4,8 +4,6 @@ package model
 import fp.SiloFactory.SiloGen
 import fp.core.{Materialized, Node}
 
-import scala.reflect.ClassTag
-
 import scala.spores._
 import scala.pickling._
 
@@ -22,7 +20,9 @@ import nodesPicklers._
   * This should be a value class but scala pickling does not handle
   * value classes correctly so it will be added in the future.
   */
-final case class MsgId(value: Int)
+final case class MsgId(value: Int) {
+  def increaseByOne = MsgId(value + 1)
+}
 
 
 /** A message is any packet of information exchanged among the nodes of
@@ -40,17 +40,18 @@ case class Disconnect(id: MsgId) extends Request
 
 case class Terminate(id: MsgId) extends Request
 
-/** [[RVSP]] is the short for "Respondez s'il vous plaît", which means that
-  * the sender is expecting a response from the recipient.
-  */
-sealed trait RVSP
+/** The sender expects a reply from the recipient. */
+sealed trait ExpectsResponse
 
 @directSubclasses(Array(classOf[Populate[_]], classOf[Transform]))
 sealed abstract class ClientRequest extends Request
 
-case class Populate[T](id: MsgId, gen: SiloGen[T]) extends ClientRequest with RVSP
+case class Populate[T](id: MsgId, gen: SiloGen[T]) extends ClientRequest with ExpectsResponse
 
-case class Transform(id: MsgId, node: Node) extends ClientRequest with RVSP
+case class RequestData(id: MsgId, node: Node) extends ClientRequest with ExpectsResponse
+
+case class Transform(id: MsgId, node: Node, unpicklerClassName: String)
+  extends ClientRequest with ExpectsResponse
 
 /** We use path-dependent types to overcome some difficulties when
   * generating picklers for [[Response]]s whose actual types we don't know
