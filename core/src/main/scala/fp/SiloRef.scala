@@ -108,15 +108,7 @@ class TransformedSilo[T, S, R](override val node: Transformation[T, S])
     }
   }
 
-  @scala.annotation.tailrec
-  private def findClosestMaterialized(n: Node): Materialized = {
-    n match {
-      case m: Materialized => m
-      case t: Transformation[t,s] => findClosestMaterialized(t.target)
-    }
-  }
-
-  override lazy val id = findClosestMaterialized(node).refId
+  override lazy val id = node.findClosestMaterialized.refId
 
 }
 

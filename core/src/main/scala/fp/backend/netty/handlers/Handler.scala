@@ -52,14 +52,6 @@ object TransformHandler extends Handler[Transform] {
 
   import fp.model.PicklingProtocol._
 
-  @scala.annotation.tailrec
-  private def findClosestMaterialized(n: Node): Materialized = {
-    n match {
-      case m: Materialized => m
-      case t: Transformation[u, s] => findClosestMaterialized(t.target)
-    }
-  }
-
   def handle(msg: Transform, ctx: NettyContext)
             (implicit server: Server, ec: ExecutionContext) = {
     Future[Unit] {

@@ -32,7 +32,17 @@ object NodeIdGen extends Gen[NodeId] {
   */
 @directSubclasses(Array(classOf[Materialized], classOf[Transformation[_, _]]))
 sealed abstract class Node {
+
   def nodeId: NodeId
+
+  @scala.annotation.tailrec
+  final def findClosestMaterialized: Materialized = {
+    this match {
+      case m: Materialized => m
+      case t: Transformation[u, s] =>t.target.findClosestMaterialized
+    }
+  }
+
 }
 
 final case class Materialized(
