@@ -1,7 +1,7 @@
 package fp
 package model
 
-import fp.core.LineagePickling
+import fp.model.pickling.LineagePickling
 
 import scala.pickling._
 import scala.pickling.internal.HybridRuntime
