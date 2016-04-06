@@ -22,7 +22,7 @@ import scala.spores._
  * private[fp] class Silo[T](private[fp] val data: T)
  * */ 
 final case class Silo[T](val data: T) {
-  type D = T
+  type Data = T
   def map[U](f: T => U): Silo[U] = flatMap(d => new Silo(f(d)))
   def flatMap[U](f: T => Silo[U]): Silo[U] = f(data)
   def getSpecialize: Silo[T] = this.asInstanceOf[Silo[T]]

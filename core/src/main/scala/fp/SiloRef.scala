@@ -51,21 +51,48 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
   import PicklingProtocol._
   import sporesPicklers._
   import nodesPicklers._
+  import scala.spores._
 
   protected def node: Node
   protected def system: SiloSystem
 
+  def fuseSpore[P, Q, R](sp1: Spore[P, Q], sp2: Spore[Q, R]): Spore[P, R] = {
+    spore[P, R] {
+      val s1 = sp1
+      val s2 = sp2
+      (p: P) => s2(s1(p))
+    }
+  }
+
   override def map[U](f: Spore[T, U])
     (implicit ps: Pickler[Spore[T,U]], us: Unpickler[Spore[T, U]]): SiloRef[U] = {
     debug(s"Creating map node targeting $node")
-    val mapped = Map(node, f)
+
+    /*val mapped = node match {
+      case m: Map[q, T] =>
+        m.copy(f = fuseSpore(m.f, f))
+      case fm: FlatMap[q, T] =>
+        val wrapper: Spore[Silo[T],U] = (s: Silo[T]) => s.map(f)
+        FlatMap[q, U](fm.target, fuseSpore(fm.f, wrapper), fm.nodeId)
+    }*/
+
     new TransformedSilo(mapped)(system, us)
   }
 
   override def flatMap[U](f: Spore[T, Silo[U]])
     (implicit ps: Pickler[Spore[T,Silo[U]]], us: Unpickler[Spore[T, Silo[U]]]): SiloRef[U] = {
     debug(s"Creating flatMap node targeting $node")
-    val flatMapped = FlatMap(node, f)
+
+    /*val flatMapped = node match {
+      case m: Map[_, T] =>
+        val df = m.f andThen  f
+        m.copy(f = df)
+        FlatMap(m.target, m.f andThen f, m.nodeId)
+      case fm: FlatMap[_, T] =>
+        fm.copy(f = fm.f andThen {(s: Silo[T]) => s.flatMap(f)})
+    }*/
+
+    val flatMapped = FlatMap(node, f, n)
     new TransformedSilo(flatMapped)(system, us)
   }
 

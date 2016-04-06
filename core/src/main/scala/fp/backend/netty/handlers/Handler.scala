@@ -3,11 +3,10 @@ package backend
 package netty
 package handlers
 
-import fp.core.{Transformation, Node, Materialized}
+import fp.core.{FlatMap, Map, Materialized}
 import fp.model._
 
 import scala.concurrent.{ExecutionContext, Future}
-import scala.spores.Spore
 
 /** Processes a concrete type of message **asynchronously**.
   *
@@ -55,7 +54,19 @@ object TransformHandler extends Handler[Transform] {
   def handle(msg: Transform, ctx: NettyContext)
             (implicit server: Server, ec: ExecutionContext) = {
     Future[Unit] {
+
       val (id, node) = (msg.id, msg.node)
+      val from = node.findClosestMaterialized
+
+      val silo = server.silos(from.refId)
+      val newSilo = node match {
+        case m: Map[Any,Any] => silo.map(m.f)
+        case fm: FlatMap[Any,Any] => silo.flatMap(fm.f)
+      }
+
+      val newSiloRefId = SiloRefId(server.host)
+      server.silos += (newSiloRefId -> newSilo)
+
       println("received")
     }
   }
