@@ -31,10 +31,10 @@ object SiloSystemClientMode extends AnyRef with App with Logging {
    */
   val system = Await.result(SiloSystem(), 10.seconds)
 
-  logger.info(s"Silo system `${system.name}` up and running.")
-  logger.info(s"Initiating termination of silo system `${system.name}`...")
+  logger.info(s"Silo system `${system.systemId}` up and running.")
+  logger.info(s"Initiating termination of silo system `${system.systemId}`...")
   Await.result(system.terminate(), 10.seconds)
-  logger.info(s"Silo system `${system.name}` terminated.")
+  logger.info(s"Silo system `${system.systemId}` terminated.")
 
 }
 
@@ -48,7 +48,7 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
    */
   Await.ready(SiloSystem(port = Some(8091)), 10.seconds) onComplete {
     case Success(system) =>
-      logger.info(s"Silo system `${system.name}` up and running at.")
+      logger.info(s"Silo system `${system.systemId}` up and running at.")
 
       /* Here it is demonstrated what running a silo system in dual mode
        * means. Despite serving silos, this silo system also defines and
@@ -73,7 +73,7 @@ object SiloSystemDualMode extends AnyRef with App with Logging {
       // JVM does not terminate if the following call is commented out
       try {
         Await.result(system.terminate(), 2.seconds)
-        logger.info(s"Silo system `${system.name}` terminated.")
+        logger.info(s"Silo system `${system.systemId}` terminated.")
       } catch {
         case err: Throwable =>
           println(err.getMessage())

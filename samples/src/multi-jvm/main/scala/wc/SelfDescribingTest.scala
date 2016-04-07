@@ -7,8 +7,7 @@ import fp._
 import fp.SiloFactory
 
 import fp.backend.SelfDescribing
-import fp.model.Populate
-import fp.model.MsgId
+import fp.model.{SiloSystemId, Populate, MsgId}
 import fp.model.PicklingProtocol._
 import sporesPicklers._
 
@@ -27,7 +26,7 @@ object SelfDescribingTest extends App {
   test(s)
   
   // Works because we don't link to any function into the spore
-  test[Populate[Int]](Populate(MsgId(1), s))
+  test[Populate[Int]](Populate(MsgId(1), SiloSystemId("t"), s))
   
 }
 

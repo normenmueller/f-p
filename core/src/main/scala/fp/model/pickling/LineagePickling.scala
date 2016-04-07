@@ -9,7 +9,7 @@ import scala.pickling._
 
 object LineagePickling {
 
-  import fp.util.PicklingHelpers._
+  import fp.util.PicklingHelper._
   import fp.model.PicklingProtocol._
   import sporesPicklers._
 

@@ -3,6 +3,7 @@ package model
 
 import fp.SiloFactory.SiloGen
 import fp.core.{Materialized, Node}
+import fp.util.UUIDGen
 
 import scala.spores._
 import scala.pickling._
@@ -24,6 +25,7 @@ final case class MsgId(value: Int) {
   def increaseByOne = MsgId(value + 1)
 }
 
+final case class SiloSystemId(value: String = UUIDGen.next)
 
 /** A message is any packet of information exchanged among the nodes of
   * a network that complies with the function-passing protocol.
@@ -31,75 +33,38 @@ final case class MsgId(value: Int) {
 @directSubclasses(Array(classOf[Request], classOf[Response]))
 sealed abstract class Message {
   val id: MsgId
+  val senderId: SiloSystemId
 }
 
 @directSubclasses(Array(classOf[ClientRequest]))
 sealed abstract class Request extends Message
 
-case class Disconnect(id: MsgId) extends Request
+case class Disconnect(id: MsgId, senderId: SiloSystemId) extends Request
 
-case class Terminate(id: MsgId) extends Request
+case class Terminate(id: MsgId, senderId: SiloSystemId) extends Request
 
 /** The sender expects a reply from the recipient. */
 sealed trait ExpectsResponse
 
 @directSubclasses(Array(classOf[Populate[_]], classOf[Transform]))
-sealed abstract class ClientRequest extends Request
+sealed abstract class ClientRequest extends Request with ExpectsResponse
 
-case class Populate[T](id: MsgId, gen: SiloGen[T]) extends ClientRequest with ExpectsResponse
+case class Populate[T](id: MsgId, senderId: SiloSystemId, gen: SiloGen[T])
+  extends ClientRequest
 
-case class RequestData(id: MsgId, node: Node) extends ClientRequest with ExpectsResponse
+case class RequestData(id: MsgId, senderId: SiloSystemId, node: Node) extends ClientRequest
 
-case class Transform(id: MsgId, node: Node, unpicklerClassName: String)
-  extends ClientRequest with ExpectsResponse
+case class Transform(id: MsgId, senderId: SiloSystemId, node: Node,
+                     picklerClassName: String, unpicklerClassName: String) extends ClientRequest
 
-/** We use path-dependent types to overcome some difficulties when
-  * generating picklers for [[Response]]s whose actual types we don't know
-  * in some given scenarios, e.g. they are stored in a `Set[Response]`.
-  * See possible use case in the netty `Receptor`.
-  */
 @directSubclasses(Array(classOf[Populated], classOf[Transformed[_]]))
-sealed abstract class Response extends Message {
+sealed abstract class Response extends Message
 
-  type Id <: Response
-
-  def specialize: Id
-  def getPickler: Pickler[Id]
-  def getUnpickler: Unpickler[Id]
-
-}
-
-case class Populated(id: MsgId, node: Materialized) extends Response {
-
-  override type Id = Populated
-
-  override def specialize: Populated =
-    this.asInstanceOf[Populated]
-
-  override def getPickler: Pickler[Populated] =
-    implicitly[Pickler[Populated]]
-
-  override def getUnpickler: Unpickler[Populated] =
-    implicitly[Unpickler[Populated]]
-
-}
+case class Populated(id: MsgId, senderId: SiloSystemId, node: Materialized) extends Response
 
 /** Represents a successful transformation over some data of a [[Silo]] that
   * it's sent back to the node that requested it. It's the natural response
   * to a `send` operation since it returns the result of the transformation.
   */
-case class Transformed[T](id: MsgId, data: T)
-    (implicit p: Pickler[Transformed[T]], u: Unpickler[Transformed[T]]) extends Response {
-
-  override type Id = Transformed[T]
-
-  override def specialize: Transformed[T] =
-    this.asInstanceOf[Transformed[T]]
-
-  /* We are forced to ask for the `Pickler`s/`Unpickler`s of `Transformed[T]`
-   * in the constructors because they have to be generated in the call site. */
-  override def getPickler: Pickler[Transformed[T]] = p
-  override def getUnpickler: Unpickler[Transformed[T]] = u
-
-}
+case class Transformed[T](id: MsgId, senderId: SiloSystemId, data: T) extends Response
 

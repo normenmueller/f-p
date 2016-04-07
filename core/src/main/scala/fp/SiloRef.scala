@@ -7,7 +7,7 @@ import scala.spores.Spore
 import fp.core._
 import fp.util.UUIDGen
 import fp.backend.SiloSystem
-import fp.model.{RequestData, PicklingProtocol, Transform, Transformed}
+import fp.model._
 
 import com.typesafe.scalalogging.{StrictLogging => Logging}
 
@@ -30,11 +30,9 @@ trait SiloRef[T] {
     * that stores the referenced [[Silo]] */
   def send: Future[T]
 
-  def map[S](f: Spore[T, S])
-    (implicit ps: Pickler[Spore[T,S]], us: Unpickler[Spore[T, S]]): SiloRef[S]
+  def map[S: Pickler: Unpickler](f: Spore[T, S]): SiloRef[S]
 
-  def flatMap[S](f: Spore[T, Silo[S]])
-    (implicit ps: Pickler[Spore[T,Silo[S]]], us: Unpickler[Spore[T, Silo[S]]]): SiloRef[S]
+  def flatMap[S: Pickler: Unpickler](f: Spore[T, Silo[S]]): SiloRef[S]
 
   final override def hashCode: Int = id.hashCode
 
@@ -45,7 +43,7 @@ trait SiloRef[T] {
 
 }
 
-abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
+abstract class SiloRefAdapter[T: Pickler: Unpickler] extends SiloRef[T] with Logging {
 
   import logger._
   import PicklingProtocol._
@@ -54,18 +52,9 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
   import scala.spores._
 
   protected def node: Node
-  protected def system: SiloSystem
+  protected implicit def system: SiloSystem
 
-  def fuseSpore[P, Q, R](sp1: Spore[P, Q], sp2: Spore[Q, R]): Spore[P, R] = {
-    spore[P, R] {
-      val s1 = sp1
-      val s2 = sp2
-      (p: P) => s2(s1(p))
-    }
-  }
-
-  override def map[U](f: Spore[T, U])
-    (implicit ps: Pickler[Spore[T,U]], us: Unpickler[Spore[T, U]]): SiloRef[U] = {
+  override def map[U: Pickler: Unpickler](f: Spore[T, U]): SiloRef[U] = {
     debug(s"Creating map node targeting $node")
 
     /*val mapped = node match {
@@ -76,11 +65,11 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
         FlatMap[q, U](fm.target, fuseSpore(fm.f, wrapper), fm.nodeId)
     }*/
 
-    new TransformedSilo(mapped)(system, us)
+    val mapped = Map(node, f)
+    new TransformedSilo(mapped)
   }
 
-  override def flatMap[U](f: Spore[T, Silo[U]])
-    (implicit ps: Pickler[Spore[T,Silo[U]]], us: Unpickler[Spore[T, Silo[U]]]): SiloRef[U] = {
+  override def flatMap[U: Pickler: Unpickler](f: Spore[T, Silo[U]]): SiloRef[U] = {
     debug(s"Creating flatMap node targeting $node")
 
     /*val flatMapped = node match {
@@ -92,14 +81,15 @@ abstract class SiloRefAdapter[T] extends SiloRef[T] with Logging {
         fm.copy(f = fm.f andThen {(s: Silo[T]) => s.flatMap(f)})
     }*/
 
-    val flatMapped = FlatMap(node, f, n)
-    new TransformedSilo(flatMapped)(system, us)
+    val flatMapped = FlatMap(node, f)
+    new TransformedSilo(flatMapped)
   }
 
 }
 
-class MaterializedSilo[R](override val node: Materialized, at: Host)
-                         (implicit val system: SiloSystem) extends SiloRefAdapter[R] {
+class MaterializedSilo[R: Pickler: Unpickler]
+    (override val node: Materialized, at: Host)
+    (implicit val system: SiloSystem) extends SiloRefAdapter[R] {
 
   import PicklingProtocol._
   import nodesPicklers._
@@ -110,7 +100,7 @@ class MaterializedSilo[R](override val node: Materialized, at: Host)
 
   override def send: Future[R] = {
     debug(s"Requesting data of materialized node to host `${id.at}`...")
-    system.request(id.at) { RequestData(_, node) } map {
+    system.request(id.at) { RequestData(_, system.systemId, node) } map {
       case t: Transformed[R] => t.data
       case _ => throw new Exception(s"Computation at `${id.at}` failed.")
     }
@@ -118,21 +108,32 @@ class MaterializedSilo[R](override val node: Materialized, at: Host)
 
 }
 
-class TransformedSilo[T, S, R](override val node: Transformation[T, S])
-  (implicit val system: SiloSystem, up: Unpickler[Spore[T, S]]) extends SiloRefAdapter[R] {
+class TransformedSilo[T, S, R: Pickler: Unpickler]
+  (override val node: Transformation[T, S])
+  (implicit val system: SiloSystem) extends SiloRefAdapter[R] {
 
   import PicklingProtocol._
   import nodesPicklers._
+  import sporesPicklers._
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
+
   override def send: Future[R] = {
     debug(s"Sending graph to host `${id.at}`...")
-    val unpicklerReturnType = up.getClass.getName
-    system.request(id.at) { Transform(_, node, unpicklerReturnType) } map {
+
+    val transformedPickler = implicitly[Pickler[Transformed[R]]]
+    val transformedUnpickler = implicitly[Unpickler[Transformed[R]]]
+    val picklerClassName = transformedPickler.getClass.getName
+    val unpicklerClassName = transformedUnpickler.getClass.getName
+
+    system.request(id.at) {
+      Transform(_, system.systemId, node, unpicklerClassName, picklerClassName)
+    } map {
       case t: Transformed[R] => t.data
       case _ => throw new Exception(s"Computation at `${id.at}` failed.")
     }
+
   }
 
   override lazy val id = node.findClosestMaterialized.refId

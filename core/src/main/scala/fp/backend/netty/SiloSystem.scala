@@ -26,18 +26,18 @@ import io.netty.handler.logging.{LogLevel, LoggingHandler => Logger}
 
 /** A Netty-based implementation of a silo system. */
 class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
-  with Ask with Tell with AsyncExecution with Logging { self =>
+  with Sender with AsyncExecution with Logging { self =>
 
   import logger._
   import PicklingProtocol._
 
-  override val name = UUIDGen.next
+  override val systemId = SiloSystemId()
 
   override val responsesFor = new TrieMap[MsgId, Promise[Response]]
 
   override def request[R <: ClientRequest : Pickler: Unpickler]
     (to: Host)(request: MsgId => R): Future[Response] =
-      connect(to) flatMap { via => ask(via, request(MsgIdGen.next)) }
+      connect(to) flatMap { via => send(via, request(MsgIdGen.next)) }
 
   private def shutdownIfServer() = {
     self match {
@@ -49,12 +49,12 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
   override def terminate(): Future[Unit] = {
     val promise = Promise[Unit]
 
-    info(s"Silo system `$name` terminating...")
+    info(s"Silo system `$systemId` terminating...")
     val closeAliveConnections = Future {
       stateOf collect {
         case (host, Connected(channel, worker)) =>
           trace(s"Closing connection to `$host`.")
-          tell(channel, Disconnect(MsgIdGen.next))
+          sendAndForget(channel, Disconnect(MsgIdGen.next, systemId))
             .andThen { case _ => worker.shutdownGracefully() }
             .andThen { case _ => stateOf += (host -> Disconnected) }
       }
@@ -63,10 +63,10 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
     closeAliveConnections onComplete {
       case s: Success[_] =>
         promise.success(shutdownIfServer())
-        info(s"Silo system `$name` has been terminated.")
+        info(s"Silo system `$systemId` has been terminated.")
       case f: Failure[_] =>
         promise.success(shutdownIfServer())
-        error(s"Error when terminating the Silo system `$name`:\n$f")
+        error(s"Error when terminating the Silo system `$systemId`:\n$f")
     }
 
     promise.future
@@ -181,7 +181,7 @@ object SiloSystem extends SiloSystemCompanion {
     executor execute {
       new SiloSystem with Server {
         override val host = at
-        override val name = at.toString
+        override val systemId = SiloSystemId(at.toString)
         override val started = promise
       }
     }

@@ -30,7 +30,7 @@ object Server extends App with Logging {
 
   Await.ready(SiloSystem(port = Some(8999)), 10.seconds) onComplete {
     case Success(sys) =>
-      info(s"Silo system `${sys.name}` up and running.")
+      info(s"Silo system `${sys.systemId}` up and running.")
     case Failure(err) =>
       error(s"Could not start silo system in server mode: ${err.getMessage}")
   }

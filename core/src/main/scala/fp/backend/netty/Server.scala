@@ -6,7 +6,7 @@ import java.net.InetSocketAddress
 import java.util.concurrent.{ CountDownLatch, LinkedBlockingQueue }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
-import fp.model.{Response, Message}
+import fp.model.{SiloSystemId, MsgId, Response, Message}
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
@@ -18,9 +18,10 @@ import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
 import scala.concurrent.Promise
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.ExecutionContext.Implicits.{ global => executor }
+import scala.pickling.Unpickler
 
 private[netty] trait Server extends backend.Server with SiloWarehouse
-  with MessagingLayer[NettyContext] with Tell with Logging {
+  with MessagingLayer[NettyContext] with Sender with Logging {
 
   self: SiloSystem =>
 
@@ -46,14 +47,14 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
     * `forwarder`: Server handler that forwards messages received by Netty.
     */
   private val mq = new LinkedBlockingQueue[NettyWrapper]
-  private val receptor = new Receptor(mq)(ec, this)
+  private val receptor = new Receptor(mq)(ec, this, self)
 
   /* Not thread-safe, only accessed in the [[Receptor]].
    * Be careful, [[ConcurrentMap]] could be better than [[TrieMap]] */
   override lazy val statusFrom = initMessagingHub
 
   /* Thread-safe since it's accessed in the handlers */
-  override lazy val unconfirmedResponses = TrieMap.empty[InetSocketAddress, Response]
+  override lazy val unconfirmedResponses = TrieMap.empty[SiloSystemId, SelfDescribing]
 
   /* Thread-safe since it's accessed in the handlers */
   override lazy val silos = TrieMap.empty[SiloRefId, Silo[_]]

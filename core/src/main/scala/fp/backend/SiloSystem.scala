@@ -1,7 +1,7 @@
 package fp
 package backend
 
-import fp.model.{ClientRequest, Response, MsgId}
+import fp.model.{SiloSystemId, ClientRequest, Response, MsgId}
 import fp.util.{AsyncExecution, IntGen, Gen}
 
 import scala.pickling._
@@ -15,12 +15,12 @@ import com.typesafe.scalalogging.{StrictLogging => Logging}
   */
 trait SiloSystem extends AsyncExecution with Logging {
 
-  /** Name identifying a given silo system.
+  /** Identify a given silo system.
     *
-    * In server mode, [[name]] defaults to `host:port`.
-    * Otherwise, [[name]] defaults to a random [[java.util.UUID]].
+    * In server mode, [[systemId]] defaults to `host:port`.
+    * Otherwise, [[systemId]] defaults to a random [[java.util.UUID]].
     */
-  def name: String
+  def systemId: SiloSystemId
 
   /** Terminate the silo system. */
   def terminate(): Future[Unit]

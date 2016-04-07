@@ -4,6 +4,7 @@ package backend
 import scala.pickling._
 
 import fp.model.PicklingProtocol._
+import fp.util.RuntimeHelper
 import sporesPicklers._
 
 /** Wrapper useful to allow deserialization of certain cases in which
@@ -21,19 +22,6 @@ import sporesPicklers._
   */
 case class SelfDescribing(unpicklerClassName: String, blob: String) {
 
-  /* Instantiate a class for an already generated `Unpickler` */
-  private def getStaticUnpickler = {
-    try {
-      val clazz = Class.forName(unpicklerClassName)
-      println(s"Unpickler class of incoming msg is $clazz")
-      clazz.newInstance().asInstanceOf[Unpickler[Any]]
-    } catch {
-      case ex: Throwable =>
-        scala.concurrent.util.Unsafe.instance.allocateInstance(
-          Class.forName(unpicklerClassName)
-        ).asInstanceOf[Unpickler[Any]]
-    }
-  }
 
   /* All the magic happens here, we get the static pickler and
    * unpickle the blob. The reader is necessary to store the
@@ -47,7 +35,7 @@ case class SelfDescribing(unpicklerClassName: String, blob: String) {
 
     val blobPickle = JSONPickle(blob)
     val reader = pickleFormat.createReader(blobPickle)
-    val unpickler = getStaticUnpickler
+    val unpickler = RuntimeHelper.getInstance[Unpickler[Any]](unpicklerClassName)
     val tag = unpickler.tag
 
     reader.beginEntry()
@@ -68,7 +56,6 @@ object SelfDescribing {
 
     val unpickler = implicitly[Unpickler[M]]
     val pickled = msg.pickle.value
-    // `Unpickler` has the same className than the `Pickler`
     SelfDescribing(unpickler.getClass.getName, pickled)
 
   }

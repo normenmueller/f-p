@@ -40,13 +40,10 @@ class SiloFactory[T: Pickler: Unpickler](val s: SiloGen[T]) {
   import PicklingProtocol._
   import sporesPicklers._
 
-  val pt = implicitly[Pickler[Silo[T]]]
-  val ut = implicitly[Unpickler[Silo[T]]]
-
   def populateAt(at: Host)(implicit system: SiloSystem,
                            ec: ExecutionContext): Future[SiloRef[T]] = {
-    system.request(at) { Populate(_, s) } map {
-      case Populated(_, node) => new MaterializedSilo[T](node, at)
+    system.request(at) { Populate(_, system.systemId, s) } map {
+      case Populated(_, systemId, node) => new MaterializedSilo[T](node, at)
       case _ => throw new Exception(s"Silo population at `$at` failed.")
     }
   }

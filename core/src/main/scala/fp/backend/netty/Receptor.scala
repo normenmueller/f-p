@@ -9,11 +9,12 @@ import fp.backend.netty.handlers.{TransformHandler, PopulateHandler}
 import fp.model._
 import fp.util.AsyncExecution
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{Future, ExecutionContext}
+import scala.util.{Failure, Success}
 
 private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
-                             (implicit val ec: ExecutionContext, server: Server)
-  extends Runnable with AsyncExecution with Logging {
+  (implicit val ec: ExecutionContext, server: Server, system: SiloSystem)
+    extends Runnable with AsyncExecution with Logging {
 
   import logger._
 
@@ -25,12 +26,14 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
     * its processing. There should be a [[fp.backend.netty.handlers.Handler]]
     * for each type of message.
     */
-  def handleMsg(wrapper: NettyWrapper, host: InetSocketAddress): Unit = {
+  def handleMsg(wrapper: NettyWrapper): Unit = {
     val NettyWrapper(ctx, msg) = wrapper
-    msg match {
+    (msg match {
       case p: Populate[_] => PopulateHandler.handle(p, ctx)
       case m: Transform => TransformHandler.handle(m, ctx)
-      case _ => error(s"We weren't able to handle $msg")
+      case _ => Future.failed(new Exception(s"We weren't able to handle $msg"))
+    }) onFailure { case e: Throwable =>
+      error(s"Exception happened $e.\n${e.getStackTrace.mkString("\n")}")
     }
 
   }
@@ -42,14 +45,14 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
     (previousExpectedId.increaseByOne, msgs)
   }
 
-  private def processStoredMsgs(current: MessagingStatus, host: InetSocketAddress) = {
+  private def processStoredMsgs(current: MessagingStatus) = {
 
     @scala.annotation.tailrec
     def process(nextId: Int, msgs: OnHoldMessages): MessagingStatus = {
       val nextMsg = msgs.peek()
       if (nextMsg != null && nextMsg.msg.id.value == nextId) {
         msgs.poll()
-        handleMsg(nextMsg, host)
+        handleMsg(nextMsg)
         process(nextId + 1, msgs)
       } else {
         (MsgId(nextId), msgs)
@@ -63,11 +66,9 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
   /** Confirm the last sent message to a given host. The last message must have
     * been lost on its way since the client has sent again an already processed
     * message. Therefore, reconfirm it. This conforms to the ACK-Reply protocol. */
-  def confirmAgainMsg(ctx: NettyContext): Unit = {
-    val lastResponse = server.unconfirmedResponses(ctx.getRemoteHost)
-    implicit val sp = lastResponse.getPickler
-    implicit val sup = lastResponse.getUnpickler
-    server.tell(ctx.channel, lastResponse.specialize)
+  def confirmMsgAgain(ctx: NettyContext, senderId: SiloSystemId): Unit = {
+    val lastResponse = server.unconfirmedResponses(senderId)
+    server.sendAndForget(ctx.channel, lastResponse)
   }
 
   @inline private def processingEnabled = counter.getCount > 0
@@ -79,7 +80,7 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
 
       val wrappedMsg = incoming.take
       debug(s"Receptor received: $wrappedMsg")
-      val host = wrappedMsg.ctx.getRemoteHost
+      val host = wrappedMsg.msg.senderId
 
       val status = server.statusFrom(host)
       val (expectedId, onHoldMsgs) = status
@@ -89,13 +90,13 @@ private[netty] class Receptor(incoming: BlockingQueue[NettyWrapper])
 
       if (msgId == expectedMsgId) {
         /* Client and server are on the same page */
-        handleMsg(wrappedMsg, host)
+        handleMsg(wrappedMsg)
         val updatedStatus = updateStatusOf(status)
-        server.statusFrom.update(host, updatedStatus)
-        processStoredMsgs(updatedStatus, host)
+        server.statusFrom += (host -> updatedStatus)
+        processStoredMsgs(updatedStatus)
       } else if (msgId == expectedMsgId - 1) {
         /* Message's already been processed */
-        confirmAgainMsg(wrappedMsg.ctx)
+        confirmMsgAgain(wrappedMsg.ctx, host)
       } else if (msgId > expectedMsgId) {
         /* Received a future message since its id is greater
          * than the expected. Store for future processing. */

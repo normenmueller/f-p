@@ -3,12 +3,16 @@ package backend
 package netty
 package handlers
 
-import fp.core.{FlatMap, Map, Materialized}
-import fp.model._
+import fp.util.RuntimeHelper
 
 import scala.concurrent.{ExecutionContext, Future}
+import scala.pickling.{PickleFormat, Pickler, Unpickler}
 
-/** Processes a concrete type of message **asynchronously**.
+import fp.core.{FlatMap, Map, Materialized}
+import fp.model._
+import fp.model.PicklingProtocol._
+
+/** Process a concrete type of message **asynchronously**.
   *
   * The handlers define how a message should be processed based on its
   * message type. They are meant to avoid message processing in the thread
@@ -18,14 +22,18 @@ import scala.concurrent.{ExecutionContext, Future}
   */
 trait Handler[T <: Message] {
   def handle(msg: T, ctx: NettyContext)
-            (implicit server: Server, ec: ExecutionContext): Future[Unit]
+            (implicit server: Server, system: SiloSystem, ec: ExecutionContext): Future[Unit]
 
-  /** Updates the pending message from which the system is
-    * expecting an explicit confirmation from the sender.
+  /** Update the pending message from which the system is
+    * expecting an explicit confirmation from the sender and
+    * send the reply to it.
     */
-  private[handlers] def storeAsPending[M <: Response]
-      (res: M, ctx: NettyContext)(implicit server: Server): Unit =
-    server.unconfirmedResponses += (ctx.getRemoteHost -> res)
+  def reply[R <: Response: Pickler: Unpickler](msg: R, ctx: NettyContext)
+                                             (implicit server: Server) = {
+    val wrapped = server.wrapBeforeSending(msg)
+    server.unconfirmedResponses += (msg.senderId -> wrapped)
+    server.sendAndForget(ctx.channel, wrapped)
+  }
 
 }
 
@@ -34,14 +42,13 @@ object PopulateHandler extends Handler[Populate[_]] {
   import fp.model.PicklingProtocol._
 
   def handle(msg: Populate[_], ctx: NettyContext)
-            (implicit server: Server, ec: ExecutionContext) = {
+            (implicit server: Server, system: SiloSystem, ec: ExecutionContext) = {
     Future[Unit] {
       val refId = SiloRefId(server.host)
       server.silos += ((refId, msg.gen(())))
-      val nodeId = Materialized(refId)
-      val response = Populated(msg.id, nodeId)
-      storeAsPending(response, ctx)
-      server.tell(ctx.channel, response)
+      val node = Materialized(refId)
+      val response = Populated(msg.id, system.systemId, node)
+      reply(response, ctx)
     }
   }
 
@@ -49,12 +56,9 @@ object PopulateHandler extends Handler[Populate[_]] {
 
 object TransformHandler extends Handler[Transform] {
 
-  import fp.model.PicklingProtocol._
-
   def handle(msg: Transform, ctx: NettyContext)
-            (implicit server: Server, ec: ExecutionContext) = {
+            (implicit server: Server, system: SiloSystem, ec: ExecutionContext) = {
     Future[Unit] {
-
       val (id, node) = (msg.id, msg.node)
       val from = node.findClosestMaterialized
 
@@ -67,7 +71,13 @@ object TransformHandler extends Handler[Transform] {
       val newSiloRefId = SiloRefId(server.host)
       server.silos += (newSiloRefId -> newSilo)
 
-      println("received")
+      import RuntimeHelper.getInstance
+      val (pcn, ucn) = (msg.picklerClassName, msg.unpicklerClassName)
+      val pickler = getInstance[Pickler[Transformed[Any]]](pcn)
+      val unpickler = getInstance[Unpickler[Transformed[Any]]](ucn)
+      val response = Transformed[Any](msg.id, system.systemId, newSilo.data)
+
+      reply(response, ctx)(pickler, unpickler, server)
     }
   }
 

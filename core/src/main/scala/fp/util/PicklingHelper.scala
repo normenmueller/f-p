@@ -2,7 +2,7 @@ package fp.util
 
 import scala.pickling._
 
-object PicklingHelpers {
+object PicklingHelper {
 
   def writeTemplate[T](builder: PBuilder, field: String, value: T,
                        pickler: Pickler[T], sideEffect: PBuilder => Unit) = {

@@ -92,7 +92,7 @@ stationary data, and get typed communication all for free, all in a friendly col
   try {
     /* Start a silo system in client mode. */
     implicit val system = Await.result(SiloSystem(), 10.seconds)
-    info(s"Silo system `${system.name}` up and running.")
+    info(s"Silo system `${system.systemId}` up and running.")
 
     /* Specify the location where to publish data. */
     val host = Host("127.0.0.1", 8999)
