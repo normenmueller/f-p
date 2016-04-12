@@ -5,7 +5,9 @@ package netty
 import com.typesafe.scalalogging.{StrictLogging => Logging}
 
 import fp.model._
+import fp.model.pickling.PicklingProtocol
 import fp.util.{UUIDGen, AsyncExecution}
+import io.netty.handler.codec.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 
 import scala.collection.mutable.{Map => Mmap}
 import scala.collection.concurrent.TrieMap
@@ -105,6 +107,7 @@ class SiloSystem(implicit val ec: ExecutionContext) extends backend.SiloSystem
           override def initChannel(ch: SocketChannel): Unit = {
             val pipeline = ch.pipeline()
             pipeline.addLast(new Logger(LogLevel.TRACE))
+            pipeline.addLast(new LengthFieldPrepender(4))
             pipeline.addLast(new Encoder())
             pipeline.addLast(new Decoder())
             pipeline.addLast(new ClientHandler())

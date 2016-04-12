@@ -1,13 +1,17 @@
 package fp
 
+import fp.model.pickling.PicklingProtocol
+
 import scala.concurrent.Future
-import scala.pickling.{Unpickler, Pickler}
-import scala.spores.Spore
+import scala.pickling.{FastTypeTag, PickleFormat, Unpickler, Pickler}
+import scala.spores._
 
 import fp.core._
-import fp.util.UUIDGen
+import fp.util.{RuntimeHelper, UUIDGen}
 import fp.backend.SiloSystem
 import fp.model._
+
+import PicklingProtocol._
 
 import com.typesafe.scalalogging.{StrictLogging => Logging}
 
@@ -30,9 +34,9 @@ trait SiloRef[T] {
     * that stores the referenced [[Silo]] */
   def send: Future[T]
 
-  def map[S: Pickler: Unpickler](f: Spore[T, S]): SiloRef[S]
+  def map[S: FastTypeTag: Pickler: Unpickler](f: Spore[T, S]): SiloRef[S]
 
-  def flatMap[S: Pickler: Unpickler](f: Spore[T, Silo[S]]): SiloRef[S]
+  def flatMap[S: FastTypeTag: Pickler: Unpickler](f: Spore[T, Silo[S]]): SiloRef[S]
 
   final override def hashCode: Int = id.hashCode
 
@@ -43,18 +47,15 @@ trait SiloRef[T] {
 
 }
 
-abstract class SiloRefAdapter[T: Pickler: Unpickler] extends SiloRef[T] with Logging {
+abstract class SiloRefAdapter[T: FastTypeTag: Pickler: Unpickler] extends SiloRef[T] with Logging {
 
   import logger._
-  import PicklingProtocol._
-  import sporesPicklers._
-  import nodesPicklers._
-  import scala.spores._
 
   protected def node: Node
   protected implicit def system: SiloSystem
 
-  override def map[U: Pickler: Unpickler](f: Spore[T, U]): SiloRef[U] = {
+  override def map[U: FastTypeTag: Pickler: Unpickler]
+    (f: Spore[T, U]): SiloRef[U] = {
     debug(s"Creating map node targeting $node")
 
     /*val mapped = node match {
@@ -69,7 +70,8 @@ abstract class SiloRefAdapter[T: Pickler: Unpickler] extends SiloRef[T] with Log
     new TransformedSilo(mapped)
   }
 
-  override def flatMap[U: Pickler: Unpickler](f: Spore[T, Silo[U]]): SiloRef[U] = {
+  override def flatMap[U: FastTypeTag: Pickler: Unpickler]
+    (f: Spore[T, Silo[U]]): SiloRef[U] = {
     debug(s"Creating flatMap node targeting $node")
 
     /*val flatMapped = node match {
@@ -87,12 +89,9 @@ abstract class SiloRefAdapter[T: Pickler: Unpickler] extends SiloRef[T] with Log
 
 }
 
-class MaterializedSilo[R: Pickler: Unpickler]
+class MaterializedSilo[R: FastTypeTag: Pickler: Unpickler]
     (override val node: Materialized, at: Host)
     (implicit val system: SiloSystem) extends SiloRefAdapter[R] {
-
-  import PicklingProtocol._
-  import nodesPicklers._
 
   import scala.concurrent.ExecutionContext.Implicits.global
 
@@ -108,27 +107,20 @@ class MaterializedSilo[R: Pickler: Unpickler]
 
 }
 
-class TransformedSilo[T, S, R: Pickler: Unpickler]
+class TransformedSilo[T, S, R: FastTypeTag]
   (override val node: Transformation[T, S])
-  (implicit val system: SiloSystem) extends SiloRefAdapter[R] {
-
-  import PicklingProtocol._
-  import nodesPicklers._
-  import sporesPicklers._
+  (implicit val system: SiloSystem, pr: Pickler[R], ur: Unpickler[R]) extends SiloRefAdapter[R] {
 
   import scala.concurrent.ExecutionContext.Implicits.global
-
 
   override def send: Future[R] = {
     debug(s"Sending graph to host `${id.at}`...")
 
-    val transformedPickler = implicitly[Pickler[Transformed[R]]]
-    val transformedUnpickler = implicitly[Unpickler[Transformed[R]]]
-    val picklerClassName = transformedPickler.getClass.getName
-    val unpicklerClassName = transformedUnpickler.getClass.getName
+    val picklerClassName = transformedPicklerUnpickler[R].getClass.getName
+    val unpicklerClassName = picklerClassName
 
     system.request(id.at) {
-      Transform(_, system.systemId, node, unpicklerClassName, picklerClassName)
+      Transform(_, system.systemId, node, picklerClassName, unpicklerClassName)
     } map {
       case t: Transformed[R] => t.data
       case _ => throw new Exception(s"Computation at `${id.at}` failed.")

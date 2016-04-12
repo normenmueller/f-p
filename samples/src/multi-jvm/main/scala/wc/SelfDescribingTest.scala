@@ -1,5 +1,7 @@
 package wc
 
+import fp.model.pickling.PicklingProtocol
+
 import scala.pickling._
 import scala.spores._
 
@@ -8,7 +10,7 @@ import fp.SiloFactory
 
 import fp.backend.SelfDescribing
 import fp.model.{SiloSystemId, Populate, MsgId}
-import fp.model.PicklingProtocol._
+import PicklingProtocol._
 import sporesPicklers._
 
 object SelfDescribingTest extends App {

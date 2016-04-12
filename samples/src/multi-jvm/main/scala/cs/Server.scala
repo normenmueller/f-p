@@ -2,11 +2,13 @@ package multijvm
 package cs
 
 import fp.backend.netty.SiloSystem
+import fp.model.pickling.PicklingProtocol
 
 import scala.concurrent.{ Await, ExecutionContext, Future, Promise }
 import scala.concurrent.duration._
 import ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.pickling.{Unpickler, Pickler}
 import scala.util.{ Success, Failure }
 
 import com.typesafe.scalalogging.{ StrictLogging => Logging }
@@ -27,6 +29,7 @@ import fp._
 object Server extends App with Logging {
 
   import logger._
+  import PicklingProtocol._
 
   Await.ready(SiloSystem(port = Some(8999)), 10.seconds) onComplete {
     case Success(sys) =>

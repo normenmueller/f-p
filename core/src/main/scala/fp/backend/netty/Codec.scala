@@ -5,12 +5,13 @@ package netty
 import java.io.ByteArrayOutputStream
 
 import fp.model.Message
-import fp.model.PicklingProtocol._
+import fp.model.pickling.PicklingProtocol
+import PicklingProtocol._
 import sporesPicklers._
 
 import _root_.io.netty.buffer.ByteBuf
 import _root_.io.netty.channel.{ ChannelHandlerContext, ChannelHandler }
-import _root_.io.netty.handler.codec.{ ByteToMessageDecoder, MessageToByteEncoder }
+import io.netty.handler.codec.{LengthFieldBasedFrameDecoder, ByteToMessageDecoder, MessageToByteEncoder}
 import _root_.com.typesafe.scalalogging.{ StrictLogging => Logging }
 
 import scala.pickling.json.JSONPickle
@@ -49,7 +50,8 @@ private[netty] class Encoder extends MessageToByteEncoder[SelfDescribing] with L
   * Note: Once a message has been decoded, it will be "automatically" released
   * by this decoder ([[_root_.io.netty.handler.codec.ByteToMessageDecoder Pitfalls]]).
  */
-private[netty] class Decoder extends ByteToMessageDecoder with Logging {
+private[netty] class Decoder
+  extends LengthFieldBasedFrameDecoder(Int.MaxValue, 0, 4, 0, 4) with Logging {
 
   import logger._
   import java.util.{ List => JList }
@@ -60,27 +62,35 @@ private[netty] class Decoder extends ByteToMessageDecoder with Logging {
     * in the ByteBuf. Then, if the List is not empty, its contents are passed to
     * the next handler in the pipeline.
     */
-  override def decode(ctx: NettyContext, in: ByteBuf, out: JList[Object]): Unit = {
+  override def decode(ctx: NettyContext, in: ByteBuf): Object = {
     try {
 
-      val buf: ByteBuf = in.readBytes(in.readableBytes())
-      val arr: Array[Byte] = if (buf.hasArray()) buf.array() else {
-        val bos = new ByteArrayOutputStream
-        while (buf.isReadable()) bos.write(buf.readByte())
-        bos.toByteArray()
+      val buf: ByteBuf = super.decode(ctx, in).asInstanceOf[ByteBuf]
+      if(buf != null) {
+        val arr: Array[Byte] = if (buf.hasArray()) buf.array()
+        else {
+          val bos = new ByteArrayOutputStream
+          while (buf.isReadable()) bos.write(buf.readByte())
+          bos.toByteArray()
+        }
+
+        var msg: Message = null
+        if (!arr.isEmpty) {
+          val received = new String(arr)
+          val sd = JSONPickle(received).unpickle[SelfDescribing]
+          trace(s"Decoded message: $msg")
+          msg = sd.unpickleWrapped[Message]
+        } else () // nop
+
+        buf.release()
+        msg
+      } else {
+        null
       }
 
-      if (!arr.isEmpty) {
-        val received = new String(arr)
-        val sd = JSONPickle(received).unpickle[SelfDescribing]
-        val msg = sd.unpickleWrapped[Message]
-        trace(s"Decoded message: $msg")
-        out add msg
-      } else () // nop
-
-      buf.release()
     } catch { case e: Throwable =>
         error(s"Decoding error: $e\n${e.getStackTrace.mkString("\n")}")
+        null
     }
   }
 

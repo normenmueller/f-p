@@ -3,6 +3,7 @@ package backend
 package netty
 package handlers
 
+import fp.model.pickling.PicklingProtocol
 import fp.util.RuntimeHelper
 
 import scala.concurrent.{ExecutionContext, Future}
@@ -10,7 +11,7 @@ import scala.pickling.{PickleFormat, Pickler, Unpickler}
 
 import fp.core.{FlatMap, Map, Materialized}
 import fp.model._
-import fp.model.PicklingProtocol._
+import PicklingProtocol._
 
 /** Process a concrete type of message **asynchronously**.
   *
@@ -39,7 +40,7 @@ trait Handler[T <: Message] {
 
 object PopulateHandler extends Handler[Populate[_]] {
 
-  import fp.model.PicklingProtocol._
+  import PicklingProtocol._
 
   def handle(msg: Populate[_], ctx: NettyContext)
             (implicit server: Server, system: SiloSystem, ec: ExecutionContext) = {

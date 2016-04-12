@@ -11,9 +11,10 @@ import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.channel.{ ChannelHandler, ChannelHandlerContext}
-import io.netty.channel.{ ChannelInitializer, SimpleChannelInboundHandler }
+import io.netty.channel._
+import io.netty.handler.codec.{LengthFieldBasedFrameDecoder, LengthFieldPrepender}
 import io.netty.handler.logging.{ LogLevel, LoggingHandler => Logger }
+import io.netty.util.concurrent.DefaultEventExecutorGroup
 
 import scala.concurrent.Promise
 import scala.collection.concurrent.TrieMap
@@ -73,14 +74,14 @@ private[netty] trait Server extends backend.Server with SiloWarehouse
       override def initChannel(ch: SocketChannel): Unit = {
         val pipeline = ch.pipeline()
         pipeline.addLast(new Logger(LogLevel.TRACE))
+        pipeline.addLast(new LengthFieldPrepender(4))
         pipeline.addLast(new Encoder())
         pipeline.addLast(new Decoder())
         pipeline.addLast(new ServerHandler())
       }
     })
-  // XXX are those options necessary?
-  //.option(ChannelOption.SO_BACKLOG.asInstanceOf[ChannelOption[Any]], 128)
-  //.childOption(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
+  .option(ChannelOption.SO_BACKLOG.asInstanceOf[ChannelOption[Any]], 128)
+  .childOption(ChannelOption.SO_KEEPALIVE.asInstanceOf[ChannelOption[Any]], true)
 
   trace("Server initializing done.")
 

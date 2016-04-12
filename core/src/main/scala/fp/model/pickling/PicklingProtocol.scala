@@ -1,17 +1,67 @@
-package fp
-package model
-package pickling
+package fp.model.pickling
 
+import fp.{Silo, SiloRefId}
 import fp.core._
+import fp.model._
 
-import scala.spores._
 import scala.pickling._
+import scala.pickling.internal.HybridRuntime
+import scala.pickling.json.JsonFormats
+import scala.pickling.pickler.AllPicklers
+import scala.spores._
 
-object LineagePickling {
+abstract class PicklingLogic extends Ops with AllPicklers with JsonFormats
 
+/** Gather all the logic from [[scala.pickling]] to work for f-p.
+  *
+  * Ensures that all the imports are in place and that the library doesn't
+  * fall back to dynamic generation of picklers.
+  */
+object PicklingProtocol extends {
+  val ignoreMe = internal.replaceRuntime(new HybridRuntime)
+} with PicklingLogic {
+
+  /** Very important, since it solves an optimization issue */
+  implicit val so = static.StaticOnly
+
+  /* Direct access to the picklers of spores, import to use */
+  val sporesPicklers = SporePickler
   import fp.util.PicklingHelper._
-  import fp.model.PicklingProtocol._
   import sporesPicklers._
+
+  val msgIdPickler = implicitly[Pickler[MsgId]]
+  val msgIdUnpickler = implicitly[Unpickler[MsgId]]
+
+  val siloSystemIdPickler = implicitly[Pickler[SiloSystemId]]
+  val siloSystemIdUnpickler = implicitly[Unpickler[SiloSystemId]]
+
+  implicit def transformedPicklerUnpickler[T: FastTypeTag]
+    (implicit p: Pickler[T], u: Unpickler[T])
+      : Pickler[Transformed[T]] with Unpickler[Transformed[T]] = {
+    new Pickler[Transformed[T]] with Unpickler[Transformed[T]] {
+
+      val picklerT = p
+      val unpicklerT = u
+      override def tag = implicitly[FastTypeTag[Transformed[T]]]
+
+      override def pickle(picklee: Transformed[T], builder: PBuilder): Unit = {
+
+        builder.beginEntry(picklee, tag)
+        writeEliding(builder, "id", picklee.id, msgIdPickler)
+        writeEliding(builder, "senderId", picklee.senderId, siloSystemIdPickler)
+        writeEliding(builder, "data", picklee.data, picklerT)
+        builder.endEntry()
+
+      }
+
+      override def unpickle(tag: String, reader: PReader): Any = {
+        val id = readEliding(reader, "id", msgIdUnpickler)
+        val senderId = readEliding(reader, "senderId", siloSystemIdUnpickler)
+        val data = readEliding(reader, "data", unpicklerT)
+        Transformed(id, senderId, data)
+      }
+    }
+  }
 
   val refIdPickler = implicitly[Pickler[SiloRefId]]
   val refIdUnpickler = implicitly[Unpickler[SiloRefId]]
@@ -76,8 +126,8 @@ object LineagePickling {
 
   }
 
-  def transformationPickle[T, S, N <: Transformation[T, S]](picklee: N,
-    tag: FastTypeTag[N], spPickler: Pickler[Spore[T, S]], builder: PBuilder) = {
+  def transformationPickle[T, S, N <: Transformation[T, S]]
+    (picklee: N, tag: FastTypeTag[N], spPickler: Pickler[Spore[T, S]], builder: PBuilder) = {
 
     builder.beginEntry(picklee, tag)
 
@@ -90,14 +140,14 @@ object LineagePickling {
 
   }
 
-  def transformationUnpickle[T, S](reader: PReader,
-      spUnpickler: Unpickler[Spore[T, S]]): (NodeId, Node, Spore[T, S]) = {
+  def transformationUnpickle[T, S]
+    (reader: PReader, spUnpickler: Unpickler[Spore[T, S]]): (NodeId, Node, Spore[T, S]) = {
     (NodeId(readEliding(reader, "nodeId", stringPickler)),
       read(reader, "target", NodePicklerUnpickler),
       read(reader, "f", spUnpickler))
   }
 
-  implicit def mapPicklerUnpickler[T, S]
+  implicit def mapPicklerUnpickler[T: FastTypeTag, S: FastTypeTag]
     (implicit p: Pickler[Spore[T, S]], u: Unpickler[Spore[T, S]])
       : Pickler[Map[T, S]] with Unpickler[Map[T, S]] = {
     new Pickler[Map[T, S]] with Unpickler[Map[T, S]] {
@@ -116,7 +166,7 @@ object LineagePickling {
     }
   }
 
-  implicit def flatMapPicklerUnpickler[T, S]
+  implicit def flatMapPicklerUnpickler[T: FastTypeTag, S: FastTypeTag]
     (implicit p: Pickler[Spore[T, Silo[S]]], u: Unpickler[Spore[T, Silo[S]]])
       : Pickler[FlatMap[T, S]] with Unpickler[FlatMap[T, S]] = {
     new Pickler[FlatMap[T, S]] with Unpickler[FlatMap[T, S]] {
@@ -136,3 +186,4 @@ object LineagePickling {
   }
 
 }
+

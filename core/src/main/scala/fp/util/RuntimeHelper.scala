@@ -1,11 +1,9 @@
 package fp
 package util
 
-import scala.pickling.Unpickler
-
 object RuntimeHelper {
 
-  /* Instantiate a class for an already generated `Unpickler` */
+  /* Instantiate a class from a class name */
   def getInstance[T](className: String): T = {
     try {
       val clazz = Class.forName(className)

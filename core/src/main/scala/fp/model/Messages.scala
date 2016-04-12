@@ -5,12 +5,7 @@ import fp.SiloFactory.SiloGen
 import fp.core.{Materialized, Node}
 import fp.util.UUIDGen
 
-import scala.spores._
-import scala.pickling._
-
-import PicklingProtocol._
-import sporesPicklers._
-import nodesPicklers._
+import scala.pickling.directSubclasses
 
 /** A unique silo system message identifier.
   *
@@ -52,19 +47,23 @@ sealed abstract class ClientRequest extends Request with ExpectsResponse
 case class Populate[T](id: MsgId, senderId: SiloSystemId, gen: SiloGen[T])
   extends ClientRequest
 
-case class RequestData(id: MsgId, senderId: SiloSystemId, node: Node) extends ClientRequest
+case class RequestData(id: MsgId, senderId: SiloSystemId,
+                       node: Node) extends ClientRequest
 
 case class Transform(id: MsgId, senderId: SiloSystemId, node: Node,
-                     picklerClassName: String, unpicklerClassName: String) extends ClientRequest
+                     picklerClassName: String,
+                     unpicklerClassName: String) extends ClientRequest
 
 @directSubclasses(Array(classOf[Populated], classOf[Transformed[_]]))
 sealed abstract class Response extends Message
 
-case class Populated(id: MsgId, senderId: SiloSystemId, node: Materialized) extends Response
+case class Populated(id: MsgId, senderId: SiloSystemId,
+                     node: Materialized) extends Response
 
 /** Represents a successful transformation over some data of a [[Silo]] that
   * it's sent back to the node that requested it. It's the natural response
   * to a `send` operation since it returns the result of the transformation.
   */
-case class Transformed[T](id: MsgId, senderId: SiloSystemId, data: T) extends Response
+case class Transformed[T](id: MsgId, senderId: SiloSystemId,
+                          data: T) extends Response
 

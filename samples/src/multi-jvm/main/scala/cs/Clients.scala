@@ -1,6 +1,8 @@
 package multijvm
 package cs
 
+import fp.model.pickling.PicklingProtocol
+
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -9,7 +11,7 @@ import scala.pickling._
 import scala.spores._
 
 import fp._
-import fp.model.PicklingProtocol._
+import PicklingProtocol._
 import sporesPicklers._
 
 import fp.backend.netty.SiloSystem
@@ -79,7 +81,7 @@ stationary data, and get typed communication all for free, all in a friendly col
   //val mt = s2(())
 
   val fs: Spore[List[String], List[Int]] = (l: List[String]) => l.map(_.toInt)
-  implicitly[Pickler[List[String]]]
+  val pls = implicitly[Pickler[List[String]]]
   implicitly[Unpickler[List[String]]]
   implicitly[Pickler[List[Int]]]
   implicitly[Unpickler[List[Int]]]
@@ -114,7 +116,7 @@ stationary data, and get typed communication all for free, all in a friendly col
 
     Await.result(system.terminate, Duration.Inf)
   } catch { case err: Throwable =>
-    logger.error(s"Silo system terminated with error:\n $err.")
+    logger.error(s"Silo system terminated with error:\n $err.\n${err.getStackTrace.mkString("\n")}")
   }
 
 }

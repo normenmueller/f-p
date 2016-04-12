@@ -1,9 +1,11 @@
 package fp
 package backend
 
+import fp.model.pickling.PicklingProtocol
+
 import scala.pickling._
 
-import fp.model.PicklingProtocol._
+import PicklingProtocol._
 import fp.util.RuntimeHelper
 import sporesPicklers._
 
@@ -38,8 +40,6 @@ case class SelfDescribing(unpicklerClassName: String, blob: String) {
     val unpickler = RuntimeHelper.getInstance[Unpickler[Any]](unpicklerClassName)
     val tag = unpickler.tag
 
-    reader.beginEntry()
-    reader.hintElidedType(tag)
     unpickler.unpickle(tag.key, reader).asInstanceOf[T]
 
   }

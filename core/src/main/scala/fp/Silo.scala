@@ -2,7 +2,8 @@ package fp
 
 import fp.SiloFactory.SiloGen
 import fp.backend.SiloSystem
-import fp.model.{PicklingProtocol, Populate, Populated}
+import fp.model.pickling.PicklingProtocol
+import fp.model.{Populate, Populated}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
@@ -28,14 +29,15 @@ final case class Silo[T](val data: T) {
   def getSpecialize: Silo[T] = this.asInstanceOf[Silo[T]]
 }
 
-import scala.pickling._
+import scala.pickling.{FastTypeTag, Pickler, Unpickler}
+
 /** [[Silo]]s can only be created through a [[SiloFactory]],
   * which are used to generate [[Silo]]s on a concrete host node.
   */
 /* As a workaround of a bug in scala-pickling, make constructor public
  * class SiloFactory[T: Pickler] private[fp](val s: SiloGen[T]) {
  * */
-class SiloFactory[T: Pickler: Unpickler](val s: SiloGen[T]) {
+class SiloFactory[T: FastTypeTag: Pickler: Unpickler](val s: SiloGen[T]) {
 
   import PicklingProtocol._
   import sporesPicklers._
@@ -66,36 +68,39 @@ object SiloFactory extends SiloFactoryHelpers {
     * and there's a type conflict (same function type after erasure).
     * Possible solution: magnet pattern.
     */
-  def apply[T: Pickler: Unpickler](dataGen: () => T): SiloFactory[T] =
+  def apply[T: FastTypeTag: Pickler: Unpickler](dataGen: () => T): SiloFactory[T] =
     fromFunctionToSiloFactory(dataGen)
 }
 
 trait SiloFactoryHelpers {
 
-  private final def siloGenerator[T: Pickler: Unpickler](f: () => T): SiloGen[T] = {
-    spore[Unit, Silo[T]] {
-      val gen = f
-      Unit => new Silo[T](gen())
+  private final def siloGenerator[T: FastTypeTag: Pickler: Unpickler]
+    (f: () => T): SiloGen[T] = {
+      spore[Unit, Silo[T]] {
+        val gen = f
+        Unit => new Silo[T](gen())
+      }
     }
-  }
 
   /** Converts a function that returns some data to a [[SiloFactory]].
     *
     * This is useful to avoid the user to explicitly create a new instance of
     * [[SiloFactory]] to wrap such a function. Syntactic sugar for the API.
     */
-  implicit def fromFunctionToSiloFactory[T: Pickler: Unpickler](f: () => T): SiloFactory[T] = {
-    new SiloFactory(siloGenerator(f))
-  }
+  implicit def fromFunctionToSiloFactory[T: FastTypeTag: Pickler: Unpickler]
+    (f: () => T): SiloFactory[T] = {
+      new SiloFactory(siloGenerator(f))
+    }
 
   /** Directly converts some data to a [[SiloFactory]].
     *
     * This is useful to avoid the user to explicitly create a new instance of
     * [[SiloFactory]] to wrap such a collection. Syntactic sugar for the API.
     */
-  implicit def fromByValueToSiloFactory[T: Pickler: Unpickler](p: => T): SiloFactory[T] = {
-    new SiloFactory(siloGenerator(() => p))
-  }
+  implicit def fromByValueToSiloFactory[T: FastTypeTag: Pickler: Unpickler]
+    (p: => T): SiloFactory[T] = {
+      new SiloFactory(siloGenerator(() => p))
+    }
 
 }
 
