@@ -9,6 +9,7 @@ import scala.pickling.internal.HybridRuntime
 import scala.pickling.json.JsonFormats
 import scala.pickling.pickler.AllPicklers
 import scala.spores._
+import fp.debug
 
 abstract class PicklingLogic extends Ops with AllPicklers with JsonFormats
 
@@ -150,7 +151,7 @@ object PicklingProtocol extends {
   implicit def mapPicklerUnpickler[T: FastTypeTag, S: FastTypeTag]
     (implicit p: Pickler[Spore[T, S]], u: Unpickler[Spore[T, S]])
       : Pickler[Map[T, S]] with Unpickler[Map[T, S]] = {
-    new Pickler[Map[T, S]] with Unpickler[Map[T, S]] {
+    implicit object MapPU extends AbstractPicklerUnpickler[Map[T, S]] {
 
       override def tag = implicitly[FastTypeTag[Map[T, S]]]
 
@@ -158,18 +159,19 @@ object PicklingProtocol extends {
         transformationPickle[T, S, Map[T, S]](picklee, tag, p, builder)
       }
 
-      private val sporeUnpickler = u
       override def unpickle(tag: String, reader: PReader): Any = {
+        val sporeUnpickler = implicitly[Unpickler[Spore[T, S]]]
         val (id, node, sp) = transformationUnpickle(reader, sporeUnpickler)
         Map(node, sp, id)
       }
     }
+    MapPU
   }
 
   implicit def flatMapPicklerUnpickler[T: FastTypeTag, S: FastTypeTag]
     (implicit p: Pickler[Spore[T, Silo[S]]], u: Unpickler[Spore[T, Silo[S]]])
       : Pickler[FlatMap[T, S]] with Unpickler[FlatMap[T, S]] = {
-    new Pickler[FlatMap[T, S]] with Unpickler[FlatMap[T, S]] {
+    implicit object FlatMapPU extends AbstractPicklerUnpickler[FlatMap[T, S]] {
 
       override def tag = implicitly[FastTypeTag[FlatMap[T, S]]]
 
@@ -177,12 +179,13 @@ object PicklingProtocol extends {
         transformationPickle[T, Silo[S], FlatMap[T, S]](picklee, tag, p, builder)
       }
 
-      private val sporeUnpickler = u
       override def unpickle(tag: String, reader: PReader): Any = {
+        val sporeUnpickler = implicitly[Unpickler[Spore[T, Silo[S]]]]
         val (id, node, sp) = transformationUnpickle(reader, sporeUnpickler)
         FlatMap(node, sp, id)
       }
     }
+    FlatMapPU
   }
 
 }
