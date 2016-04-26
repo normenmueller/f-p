@@ -1,13 +1,9 @@
 package fp
 package backend
 
-import fp.model.pickling.PicklingProtocol
-
 import scala.pickling._
-
-import PicklingProtocol._
 import fp.util.RuntimeHelper
-import sporesPicklers._
+import fp.model.pickling.PicklingProtocol._
 
 /** Wrapper useful to allow deserialization of certain cases in which
   * scala-pickling cannot generate pickler/unpicklers for.
@@ -24,7 +20,6 @@ import sporesPicklers._
   */
 case class SelfDescribing(unpicklerClassName: String, blob: String) {
 
-
   /* All the magic happens here, we get the static pickler and
    * unpickle the blob. The reader is necessary to store the
    * unpickled object and cast it to a concrete type `T`.
@@ -37,10 +32,12 @@ case class SelfDescribing(unpicklerClassName: String, blob: String) {
 
     val blobPickle = JSONPickle(blob)
     val reader = pickleFormat.createReader(blobPickle)
-    val unpickler = RuntimeHelper.getInstance[Unpickler[Any]](unpicklerClassName)
-    val tag = unpickler.tag
-
-    unpickler.unpickle(tag.key, reader).asInstanceOf[T]
+    println(unpicklerClassName)
+    println(scala.pickling.internal.currentRuntime.picklers.lookupUnpickler(unpicklerClassName))
+    val lookup = scala.pickling.internal.currentRuntime.picklers.lookupUnpickler(unpicklerClassName)
+    
+    val anyUnpickler = scala.pickling.pickler.AnyPicklerUnpickler
+    anyUnpickler.unpickle(unpicklerClassName, reader).asInstanceOf[T]
 
   }
 
@@ -55,8 +52,10 @@ object SelfDescribing {
   def apply[M <: Message: Pickler: Unpickler](msg: M): SelfDescribing = {
 
     val unpickler = implicitly[Unpickler[M]]
+    val unpicklerClassName = unpickler.getClass.getName
     val pickled = msg.pickle.value
-    SelfDescribing(unpickler.getClass.getName, pickled)
+    println(unpickler.tag.key)
+    SelfDescribing(unpickler.tag.key, pickled)
 
   }
 

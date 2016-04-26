@@ -26,7 +26,7 @@ import fp._
   * To allow for creation of silos by other nodes, the F-P runtime requires a
   * web server. Current default is a Netty-based web server.
   */
-object Server extends App with Logging {
+object Server extends App with FPImplicits with Logging {
 
   import logger._
   import PicklingProtocol._

@@ -7,6 +7,7 @@ import fp.model.{Populate, Populated}
 
 import scala.concurrent.{ExecutionContext, Future}
 import scala.language.implicitConversions
+import scala.pickling.AbstractPicklerUnpickler
 import scala.spores._
 
 /** Container of some data stored in a node.
@@ -37,10 +38,8 @@ import scala.pickling.{FastTypeTag, Pickler, Unpickler}
 /* As a workaround of a bug in scala-pickling, make constructor public
  * class SiloFactory[T: Pickler] private[fp](val s: SiloGen[T]) {
  * */
-class SiloFactory[T: FastTypeTag: Pickler: Unpickler](val s: SiloGen[T]) {
-
-  import PicklingProtocol._
-  import sporesPicklers._
+class SiloFactory[T: FastTypeTag: Pickler: Unpickler](val s: SiloGen[T])
+  (implicit p: Pickler[Populate[T]], u: Unpickler[Populate[T]]) {
 
   def populateAt(at: Host)(implicit system: SiloSystem,
                            ec: ExecutionContext): Future[SiloRef[T]] = {
@@ -68,7 +67,8 @@ object SiloFactory extends SiloFactoryHelpers {
     * and there's a type conflict (same function type after erasure).
     * Possible solution: magnet pattern.
     */
-  def apply[T: FastTypeTag: Pickler: Unpickler](dataGen: () => T): SiloFactory[T] =
+  def apply[T: FastTypeTag: Pickler: Unpickler](dataGen: () => T)
+    (implicit p: Pickler[Populate[T]], u: Unpickler[Populate[T]]): SiloFactory[T] =
     fromFunctionToSiloFactory(dataGen)
 }
 
@@ -88,7 +88,7 @@ trait SiloFactoryHelpers {
     * [[SiloFactory]] to wrap such a function. Syntactic sugar for the API.
     */
   implicit def fromFunctionToSiloFactory[T: FastTypeTag: Pickler: Unpickler]
-    (f: () => T): SiloFactory[T] = {
+    (f: () => T)(implicit p: Pickler[Populate[T]], u: Unpickler[Populate[T]]): SiloFactory[T] = {
       new SiloFactory(siloGenerator(f))
     }
 
@@ -98,8 +98,8 @@ trait SiloFactoryHelpers {
     * [[SiloFactory]] to wrap such a collection. Syntactic sugar for the API.
     */
   implicit def fromByValueToSiloFactory[T: FastTypeTag: Pickler: Unpickler]
-    (p: => T): SiloFactory[T] = {
-      new SiloFactory(siloGenerator(() => p))
+    (f: => T)(implicit p: Pickler[Populate[T]], u: Unpickler[Populate[T]]): SiloFactory[T] = {
+      new SiloFactory(siloGenerator(() => f))
     }
 
 }

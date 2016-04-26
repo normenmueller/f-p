@@ -11,9 +11,6 @@ import scala.pickling._
 import scala.spores._
 
 import fp._
-import PicklingProtocol._
-import sporesPicklers._
-
 import fp.backend.netty.SiloSystem
 
 import com.typesafe.scalalogging.{StrictLogging => Logging}
@@ -25,7 +22,7 @@ import com.typesafe.scalalogging.{StrictLogging => Logging}
   * executed computations, and for sending those computations to respective silo
   * systems running in server mode.
   */
-object Clients extends App with Logging {
+object Clients extends App with FPImplicits with Logging {
 
   private val summary = """
 In this talk, I'll present some of our ongoing work on a new programming model for asynchronous and distributed
@@ -73,20 +70,12 @@ stationary data, and get typed communication all for free, all in a friendly col
 
   // Alternative 3
   /* NOTE: Spores have to be defined here statically */
+
   val s = spore[Unit, Silo[List[String]]] {
     Unit => new Silo(List("1", "2", "3"))
   }
 
-  //val s2 = s.pickle.unpickle[Spore[Unit, Silo[List[String]]]]
-  //val mt = s2(())
-
   val fs: Spore[List[String], List[Int]] = (l: List[String]) => l.map(_.toInt)
-  val pls = implicitly[Pickler[List[String]]]
-  implicitly[Unpickler[List[String]]]
-  implicitly[Pickler[List[Int]]]
-  implicitly[Unpickler[List[Int]]]
-  implicitly[Pickler[Spore[List[String], List[Int]]]]
-  implicitly[Unpickler[Spore[List[String], List[Int]]]]
   val data = new SiloFactory(s)
 
   import logger._
