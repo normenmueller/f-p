@@ -60,13 +60,13 @@ final case class Map[T, S](
   target: Node,
   f: Spore[T, S],
   nodeId: NodeId = NodeIdGen.next
-) extends Transformation[T, S]
+)(implicit val ftt: FastTypeTag[T], val fts: FastTypeTag[S]) extends Transformation[T, S]
 
-final case class FlatMap[T, S](
+final case class FlatMap[T: FastTypeTag, S: FastTypeTag](
   target: Node,
   f: Spore[T, Silo[S]],
   nodeId: NodeId = NodeIdGen.next
-) extends Transformation[T, Silo[S]]
+)(implicit val ftt: FastTypeTag[T], val fts: FastTypeTag[S]) extends Transformation[T, Silo[S]]
 
 
 
